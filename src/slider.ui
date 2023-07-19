@@ -69,7 +69,7 @@
                 </widget>
                </item>
                <item row="0" column="0">
-                <widget class="QPushButton" name="pushButton_1">
+                <widget class="QPushButton" name="pushButton_p1">
                  <property name="text">
                   <string>+1</string>
                  </property>
@@ -194,7 +194,7 @@
   <tabstop>doubleSpinBox_llim</tabstop>
   <tabstop>pushButton_zero</tabstop>
   <tabstop>doubleSpinBox_ulim</tabstop>
-  <tabstop>pushButton_1</tabstop>
+  <tabstop>pushButton_p1</tabstop>
   <tabstop>pushButton_p10</tabstop>
   <tabstop>pushButton_m10</tabstop>
   <tabstop>pushButton_go</tabstop>

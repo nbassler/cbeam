@@ -9,22 +9,23 @@ namespace Ui {
     class MainWindow;
 }
 
-class MainWindow: public QMainWindow
-{
+class MainWindow: public QMainWindow {
     Q_OBJECT
 
 public:
+
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
 private slots:
+
     void update();
 
 private:
-    Ui::MainWindow *ui;
-    QTcpSocket *tcpSocket;
-    int blockSize;
 
+    Ui::MainWindow *ui;
+    QTcpSocket     *tcpSocket;
+    int blockSize;
 };
 
 #endif // MAINWINDOW_H
