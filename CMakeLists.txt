@@ -14,6 +14,8 @@ set(PROJECT_SOURCES
         src/model.cpp
         src/ctrl.h
         src/ctrl.cpp
+        src/mainwindow.h
+        src/mainwindow.cpp
 )
 
 qt_add_executable(cbeam
