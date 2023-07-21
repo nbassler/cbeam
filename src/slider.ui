@@ -61,17 +61,17 @@
              </item>
              <item>
               <layout class="QGridLayout" name="gridLayout">
+               <item row="1" column="1">
+                <widget class="QPushButton" name="pushButton_m10">
+                 <property name="text">
+                  <string>-10</string>
+                 </property>
+                </widget>
+               </item>
                <item row="1" column="0">
                 <widget class="QPushButton" name="pushButton_m1">
                  <property name="text">
                   <string>-1</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QPushButton" name="pushButton_p10">
-                 <property name="text">
-                  <string>+10</string>
                  </property>
                 </widget>
                </item>
@@ -82,10 +82,10 @@
                  </property>
                 </widget>
                </item>
-               <item row="1" column="1">
-                <widget class="QPushButton" name="pushButton_m10">
+               <item row="0" column="1">
+                <widget class="QPushButton" name="pushButton_p10">
                  <property name="text">
-                  <string>-10</string>
+                  <string>+10</string>
                  </property>
                 </widget>
                </item>
@@ -120,6 +120,9 @@
             <widget class="QDoubleSpinBox" name="doubleSpinBox_goPos">
              <property name="maximum">
               <double>500.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.500000000000000</double>
              </property>
             </widget>
            </item>

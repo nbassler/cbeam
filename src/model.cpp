@@ -46,6 +46,12 @@ void Model::go()
 {
     std::cout << "b";
 
+    if (step_goto < step_llim)
+        step_goto = step_llim;
+
+    if (step_goto > step_ulim)
+        step_goto = step_ulim;
+
     while (step_current != step_goto)
     {
         if (step_goto > step_current)

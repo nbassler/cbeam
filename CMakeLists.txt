@@ -12,8 +12,6 @@ set(PROJECT_SOURCES
         src/slider.ui
         src/model.h
         src/model.cpp
-        src/ctrl.h
-        src/ctrl.cpp
         src/mainwindow.h
         src/mainwindow.cpp
 )

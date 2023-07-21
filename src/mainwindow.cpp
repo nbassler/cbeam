@@ -1,7 +1,7 @@
 #include <iostream>
 #include <QDebug>
+
 #include "ui_slider.h"
-#include "ctrl.h"
 #include "model.h"
 #include "mainwindow.h"
 
@@ -15,20 +15,8 @@ MainWindow::MainWindow(QWidget *parent) :
     // init values
     ui->setupUi(this);
 
-    // connect stuff here
-
-    // Model *m = new Model();
-
-    // Ctrl  *c = new Ctrl();
     Model *m = new Model();
 
-    // any user change on GUI will be sent to controller, which then will update
-    // the model
-    //
-    // QObject::connect(ui.pushButton_go, SIGNAL(clicked()), c, SLOT(go())); //
-    // old syntax
-    // QObject::connect(ui.horizontalSlider, SIGNAL(valueChanged()), c,
-    // SLOT(set_step(var))); // old syntax
     QObject::connect(ui->pushButton_go,       &QPushButton::pressed,
                      m, &Model::go);
     QObject::connect(ui->horizontalSlider,    &QSlider::valueChanged,
