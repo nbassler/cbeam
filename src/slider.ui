@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>CBeam Controller</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
@@ -150,10 +150,18 @@
          <item row="0" column="0">
           <layout class="QGridLayout" name="gridLayout_2">
            <item row="0" column="2">
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_ulim"/>
+            <widget class="QDoubleSpinBox" name="doubleSpinBox_ulim">
+             <property name="maximum">
+              <double>500.000000000000000</double>
+             </property>
+            </widget>
            </item>
            <item row="0" column="1">
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_llim"/>
+            <widget class="QDoubleSpinBox" name="doubleSpinBox_llim">
+             <property name="maximum">
+              <double>500.000000000000000</double>
+             </property>
+            </widget>
            </item>
            <item row="0" column="0">
             <widget class="QLabel" name="label_3">

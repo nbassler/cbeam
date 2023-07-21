@@ -10,8 +10,11 @@ class Model : public QObject {
 public:
 
     Model();
-    void aaa();
-    void update_ui();
+    void   aaa();
+    void   update_ui();
+    double get_step_llim();
+    double get_step_ulim();
+    double get_step_current();
 
 public slots:
 
@@ -42,15 +45,18 @@ public slots:
 private:
 
     double mm_per_step;
-    int step_current; // current position in steps
     int step_goto;    // requested absulte step position, will be travelled to
     int step_llim;    // lower step limit
     int step_ulim;    // upper step limit
+    int step_current; // current position in steps
 
 signals:
 
     void valueChanged(int);
     void updatePosLabel(QString);
+    void updateHSliderLim(int,
+                          int);
+    void updateHSliderPos(int);
 };
 
 #endif // MODEL_H

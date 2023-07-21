@@ -1,4 +1,5 @@
 #include <iostream>
+#include <QDebug>
 #include "ui_slider.h"
 #include "ctrl.h"
 #include "model.h"
@@ -56,11 +57,28 @@ MainWindow::MainWindow(QWidget *parent) :
     //     static_cast<void (QLabel::*)(int)>(&QLabel::setNum) // amazingly ugly
     //     );
 
-    QObject::connect(m,
-                     &Model::updatePosLabel,
-                     ui->label_currentPos,
-                     &QLabel::setText
-                     );
+    QObject::connect(m, &Model::updatePosLabel,
+                     ui->label_currentPos, &QLabel::setText);
+
+    QObject::connect(m, &Model::updateHSliderPos,
+                     ui->horizontalSlider, &QSlider::setValue);
+
+    QObject::connect(m, &Model::updateHSliderLim,
+                     ui->horizontalSlider, &QSlider::setRange);
+
+    ui->doubleSpinBox_llim->setValue(m->get_step_llim());
+    ui->doubleSpinBox_ulim->setValue(m->get_step_ulim());
+
+    qDebug() << ui->horizontalSlider->minimum() << "min";
+    qDebug() << ui->horizontalSlider->maximum() << "max";
+
+    ui->horizontalSlider->setRange(m->get_step_llim(), m->get_step_ulim());
+    ui->horizontalSlider->setValue(m->get_step_current());
+
+    qDebug() << ui->horizontalSlider->minimum() << "min";
+    qDebug() << ui->horizontalSlider->maximum() << "max";
+
+    // m->init();
 }
 
 MainWindow::~MainWindow()

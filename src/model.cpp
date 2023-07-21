@@ -9,11 +9,11 @@ using namespace std;
 
 Model::Model()
 {
-    mm_per_step  = 40.0 / 1000.0;            // mm per step
+    mm_per_step  = 40.0 / 1000.0;           // mm per step
     step_current = 0;
     step_goto    = 0;
-    step_llim    = 0;                        // lower step limit
-    step_ulim    = (int)300.0 / mm_per_step; // upper step limit
+    step_llim    = (int)LLIM / mm_per_step; // lower step limit
+    step_ulim    = (int)ULIM / mm_per_step; // upper step limit
 }
 
 void go();
@@ -35,10 +35,7 @@ void Model::aaa()
 }
 
 void Model::init()
-{
-    set_mm_llim(LLIM);
-    set_mm_ulim(ULIM);
-}
+{}
 
 void Model::zero()
 {
@@ -60,6 +57,11 @@ void Model::go()
 
     std::cout << "b...\n";
     updatePos();
+
+    // qDebug() << "go B" << step_goto << step_current;
+    // emit updateHSliderPos(step_current);
+    //
+    // qDebug() << "go C" << step_goto << step_current;
     print_state();
 }
 
@@ -67,6 +69,7 @@ void Model::set_step(int var)
 {
     step_goto = var;
     emit valueChanged(step_goto * mm_per_step);
+    emit updateHSliderPos(var);
 }
 
 void Model::set_step_delta(int var)
@@ -76,8 +79,12 @@ void Model::set_step_delta(int var)
 
 void Model::set_step_p1()
 {
+    qDebug() << "set_step_p1";
+    qDebug() << "p1 A" << step_goto;
     step_goto = step_current + 1;
+    qDebug() << "p1 B" << step_goto;
     go();
+    qDebug() << "p1 C" << step_goto;
 }
 
 void Model::set_step_m1()
@@ -102,12 +109,14 @@ void Model::set_step_llim(int var)
 {
     step_llim = var;
     print_state();
+    emit updateHSliderLim(var, step_ulim);
 }
 
 void Model::set_step_ulim(int var)
 {
     step_ulim = var;
     print_state();
+    emit updateHSliderLim(step_llim, var);
 }
 
 void Model::set_mm(double var)
@@ -130,15 +139,25 @@ void Model::set_mm_ulim(double var)
     set_step_ulim((int)(var / mm_per_step));
 }
 
+double Model::get_step_llim(void)
+{
+    return step_llim;
+}
+
+double Model::get_step_ulim(void)
+{
+    return step_ulim;
+}
+
+double Model::get_step_current(void)
+{
+    return step_current;
+}
+
 void Model::updatePos()
 {
     QString qstr =
         QString("%1 mm").arg(qFabs(step_current * mm_per_step), 0, 'f', 3);
-
-    // QString str;
-
-
-    qDebug() << qstr;
     emit updatePosLabel(qstr);
 }
 
