@@ -24,33 +24,38 @@ public slots:
     void go();
     void zero();
 
-    void set_step(int);
+    void set_step_goto(int);
     void set_step_llim(int);
     void set_step_ulim(int);
-    void set_step_delta(int);
+
+    // void set_step_delta(int);
 
     void set_step_p1(void);
     void set_step_m1(void);
     void set_step_p10(void);
     void set_step_m10(void);
 
-    void set_mm(double);
+    void set_mm_goto(double);
     void set_mm_llim(double);
     void set_mm_ulim(double);
-    void set_mm_delta(double);
+
+    // void set_mm_delta(double);
 
     void print_state();
 
     /* UI stuff */
-    void updatePos();
+    void updatePosUI();
+    void updateGotoUI();
 
 private:
 
     double mm_per_step;
-    int step_goto;    // requested absulte step position, will be travelled to
-    int step_llim;    // lower step limit
-    int step_ulim;    // upper step limit
-    int step_current; // current position in steps
+    int step_current;  // current position in steps
+    int step_goto;     // requested absolute step position, will be travelled to
+    // viewer data
+    int step_goto_box; // requested step in goto_box
+    int step_llim;     // lower step limit
+    int step_ulim;     // upper step limit
 
 signals:
 

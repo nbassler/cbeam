@@ -62,23 +62,23 @@ void Model::go()
     }
 
     std::cout << "b...\n";
-    updatePos();
-    emit updateHSliderPos(step_current);
+    updatePosUI();
+
+    // emit updateHSliderPos(step_current);
 
     print_state();
 }
 
-void Model::set_step(int var)
+void Model::set_step_goto(int var)
 {
-    step_goto = var;
-    emit updateSpinBoxPos(step_goto * mm_per_step);
-    emit updateHSliderPos(var);
+    step_goto_box = var;
+    updateGotoUI();
 }
 
-void Model::set_step_delta(int var)
-{
-    step_goto = step_current + (var / mm_per_step);
-}
+// void Model::set_step_delta(int var)
+// {
+//     step_goto = step_current + (var / mm_per_step);
+// }
 
 void Model::set_step_p1()
 {
@@ -116,15 +116,15 @@ void Model::set_step_ulim(int var)
     emit updateHSliderLim(step_llim, var);
 }
 
-void Model::set_mm(double var)
+void Model::set_mm_goto(double var)
 {
-    set_step((int)(var / mm_per_step));
+    set_step_goto((int)(var / mm_per_step));
 }
 
-void Model::set_mm_delta(double var)
-{
-    set_step((int)(step_current + var / mm_per_step));
-}
+// void Model::set_mm_delta(double var)
+// {
+//     set_step_goto((int)(step_current + var / mm_per_step));
+// }
 
 void Model::set_mm_llim(double var)
 {
@@ -161,11 +161,17 @@ double Model::get_mm_ulim(void)
     return step_ulim * mm_per_step;
 }
 
-void Model::updatePos()
+void Model::updatePosUI()
 {
     QString qstr =
         QString("%1 mm").arg(qFabs(step_current * mm_per_step), 0, 'f', 3);
     emit updatePosLabel(qstr);
+}
+
+void Model::updateGotoUI()
+{
+    emit updateSpinBoxPos(step_goto_box * mm_per_step);
+    emit updateHSliderPos(step_goto_box); // this segfaults
 }
 
 void Model::print_state()

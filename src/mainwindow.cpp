@@ -20,10 +20,10 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(ui->pushButton_go,       &QPushButton::pressed,
                      m, &Model::go);
     QObject::connect(ui->horizontalSlider,    &QSlider::valueChanged,
-                     m, &Model::set_step);
+                     m, &Model::set_step_goto);
 
     QObject::connect(ui->doubleSpinBox_goPos, &QDoubleSpinBox::valueChanged,
-                     m, &Model::set_mm);
+                     m, &Model::set_mm_goto);
     QObject::connect(ui->doubleSpinBox_llim,  &QDoubleSpinBox::valueChanged,
                      m, &Model::set_mm_llim);
     QObject::connect(ui->doubleSpinBox_ulim,  &QDoubleSpinBox::valueChanged,
@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(ui->pushButton_p10,      &QPushButton::pressed,
                      m, &Model::set_step_p10);
     QObject::connect(ui->pushButton_m10,      &QPushButton::pressed,
-                     m, &Model::set_step_p10);
+                     m, &Model::set_step_m10);
 
 
     // let the model be able to update the GUI
