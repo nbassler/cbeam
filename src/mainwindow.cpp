@@ -19,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QObject::connect(ui->pushButton_go,       &QPushButton::pressed,
                      m, &Model::go);
+    QObject::connect(ui->pushButton_zero,     &QPushButton::pressed,
+                     m, &Model::zero);
     QObject::connect(ui->horizontalSlider,    &QSlider::valueChanged,
                      m, &Model::set_step_goto);
 
@@ -57,12 +59,26 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(m, &Model::updateHSliderLim,
                      ui->horizontalSlider, &QSlider::setRange);
 
+    QObject::connect(m, &Model::updateGotoBoxLlim,
+                     ui->doubleSpinBox_goPos, &QDoubleSpinBox::setMinimum);
+    QObject::connect(m, &Model::updateGotoBoxUlim,
+                     ui->doubleSpinBox_goPos, &QDoubleSpinBox::setMaximum);
+
+    QObject::connect(m, &Model::updateDSLlim,
+                     ui->doubleSpinBox_llim, &QDoubleSpinBox::setValue);
+    QObject::connect(m, &Model::updateDSUlim,
+                     ui->doubleSpinBox_ulim, &QDoubleSpinBox::setValue);
+
 
     ui->doubleSpinBox_llim->setValue(m->get_step_llim());
     ui->doubleSpinBox_ulim->setValue(m->get_step_ulim());
 
     ui->doubleSpinBox_goPos->setMinimum(m->get_mm_llim());
     ui->doubleSpinBox_goPos->setMaximum(m->get_mm_ulim());
+    ui->doubleSpinBox_goPos->setSingleStep(m->get_mm_per_step());
+
+    qDebug() << m->get_mm_llim() << "mm_llim";
+    qDebug() << m->get_mm_ulim() << "mm_ulim";
 
     qDebug() << ui->horizontalSlider->minimum() << "min";
     qDebug() << ui->horizontalSlider->maximum() << "max";
@@ -72,8 +88,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
     qDebug() << ui->horizontalSlider->minimum() << "min";
     qDebug() << ui->horizontalSlider->maximum() << "max";
-
-    // m->init();
 }
 
 MainWindow::~MainWindow()

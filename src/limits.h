@@ -3,7 +3,9 @@
 
 // define hardcoded upper and lower limits in [mm]
 
-#define LLIM 0.0
-#define ULIM 400.0
+#define CB_LLIM 0.000
+#define CB_ULIM 400.000
+#define CB_DIGITS 3
+#define CB_MM_PER_STEP 40.0 / 1000.0;
 
 #endif // LIMITS_H

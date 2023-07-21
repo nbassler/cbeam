@@ -10,17 +10,17 @@ class Model : public QObject {
 public:
 
     Model();
-    void   aaa();
     void   update_ui();
     double get_step_llim();
     double get_step_ulim();
     double get_mm_llim();
     double get_mm_ulim();
+    double get_mm_per_step();
     double get_step_current();
+    void   move();
 
 public slots:
 
-    void init();
     void go();
     void zero();
 
@@ -46,6 +46,7 @@ public slots:
     /* UI stuff */
     void updatePosUI();
     void updateGotoUI();
+    void updateLimUI();
 
 private:
 
@@ -56,6 +57,8 @@ private:
     int step_goto_box; // requested step in goto_box
     int step_llim;     // lower step limit
     int step_ulim;     // upper step limit
+    double myround(double,
+                   int);
 
 signals:
 
@@ -64,6 +67,10 @@ signals:
     void updateHSliderLim(int,
                           int);
     void updateHSliderPos(int);
+    void updateGotoBoxLlim(double);
+    void updateGotoBoxUlim(double);
+    void updateDSLlim(double);
+    void updateDSUlim(double);
 };
 
 #endif // MODEL_H
