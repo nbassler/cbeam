@@ -117,7 +117,11 @@
             </widget>
            </item>
            <item>
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_goPos"/>
+            <widget class="QDoubleSpinBox" name="doubleSpinBox_goPos">
+             <property name="maximum">
+              <double>500.000000000000000</double>
+             </property>
+            </widget>
            </item>
            <item>
             <widget class="QPushButton" name="pushButton_go">

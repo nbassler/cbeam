@@ -14,6 +14,8 @@ public:
     void   update_ui();
     double get_step_llim();
     double get_step_ulim();
+    double get_mm_llim();
+    double get_mm_ulim();
     double get_step_current();
 
 public slots:
@@ -52,7 +54,7 @@ private:
 
 signals:
 
-    void valueChanged(int);
+    void updateSpinBoxPos(double);
     void updatePosLabel(QString);
     void updateHSliderLim(int,
                           int);

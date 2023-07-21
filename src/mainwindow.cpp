@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(ui->pushButton_go,       &QPushButton::pressed,
                      m, &Model::go);
     QObject::connect(ui->horizontalSlider,    &QSlider::valueChanged,
-                     m, &Model::set_mm);
+                     m, &Model::set_step);
 
     QObject::connect(ui->doubleSpinBox_goPos, &QDoubleSpinBox::valueChanged,
                      m, &Model::set_mm);
@@ -63,11 +63,18 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(m, &Model::updateHSliderPos,
                      ui->horizontalSlider, &QSlider::setValue);
 
+    QObject::connect(m, &Model::updateSpinBoxPos,
+                     ui->doubleSpinBox_goPos, &QDoubleSpinBox::setValue);
+
     QObject::connect(m, &Model::updateHSliderLim,
                      ui->horizontalSlider, &QSlider::setRange);
 
+
     ui->doubleSpinBox_llim->setValue(m->get_step_llim());
     ui->doubleSpinBox_ulim->setValue(m->get_step_ulim());
+
+    ui->doubleSpinBox_goPos->setMinimum(m->get_mm_llim());
+    ui->doubleSpinBox_goPos->setMaximum(m->get_mm_ulim());
 
     qDebug() << ui->horizontalSlider->minimum() << "min";
     qDebug() << ui->horizontalSlider->maximum() << "max";
