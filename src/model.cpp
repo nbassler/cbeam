@@ -1,6 +1,7 @@
 #include <iostream>
 #include "model.h"
 #include "ui_slider.h"
+#include "limits.h"
 
 #include <QDebug>
 
@@ -31,6 +32,12 @@ void set_mm_delta(double);
 void Model::aaa()
 {
     std::cout << "hey ho aaa\n";
+}
+
+void Model::init()
+{
+    set_mm_llim(LLIM);
+    set_mm_ulim(ULIM);
 }
 
 void Model::zero()
@@ -126,7 +133,7 @@ void Model::set_mm_ulim(double var)
 void Model::updatePos()
 {
     QString qstr =
-        QString("%1 mm").arg(qFabs(step_current * mm_per_step), 3, 'f');
+        QString("%1 mm").arg(qFabs(step_current * mm_per_step), 0, 'f', 3);
 
     // QString str;
 

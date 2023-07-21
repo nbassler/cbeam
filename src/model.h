@@ -15,6 +15,7 @@ public:
 
 public slots:
 
+    void init();
     void go();
     void zero();
 
