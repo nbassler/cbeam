@@ -59,7 +59,7 @@ constexpr int CB_MM_DIGITS = 3;
 // moves shorter than 550 steps (about 22 mm) never reach cruise at all and
 // come out triangular.
 constexpr double CB_RATE_CRUISE = 500.0; // matches the 2 ms pulse in test3.py
-constexpr double CB_RATE_START = 50.0;   // rate at both ends of a move
+constexpr double CB_RATE_START = 200.0;  // rate at both ends of a move
 constexpr int CB_RAMP_MS = 1000;         // time from start rate up to cruise
 
 // Acceleration follows from the rates and the ramp time, in steps/s^2.
