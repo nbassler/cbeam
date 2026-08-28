@@ -125,16 +125,24 @@ if(CBEAM_BACKEND STREQUAL "gpio")
     find_path(PIGPIO_IF2_INCLUDE_DIR NAMES pigpiod_if2.h)
     find_library(PIGPIO_IF2_LIBRARY NAMES pigpiod_if2)
 
-    if(NOT PIGPIO_IF2_INCLUDE_DIR OR NOT PIGPIO_IF2_LIBRARY)
+    # pigpiod_if2.h does #include "pigpio.h", and that header ships in a
+    # separate package. Checked here so a missing one fails at configure time
+    # naming the package, rather than as a compile error deep in a build log.
+    find_path(PIGPIO_INCLUDE_DIR NAMES pigpio.h)
+
+    if(NOT PIGPIO_IF2_INCLUDE_DIR OR NOT PIGPIO_IF2_LIBRARY
+       OR NOT PIGPIO_INCLUDE_DIR)
         message(FATAL_ERROR
-            "CBEAM_BACKEND=gpio needs the pigpio daemon client library.\n"
-            "  sudo apt install libpigpiod-if-dev\n"
-            "It exists only on Raspberry Pi (and pigpio itself does not "
-            "support the Pi 5). Build with -DCBEAM_BACKEND=sim elsewhere.")
+            "CBEAM_BACKEND=gpio needs pigpio. Both dev packages are "
+            "required -- pigpiod_if2.h includes pigpio.h:\n"
+            "  sudo apt install libpigpio-dev libpigpiod-if-dev\n"
+            "pigpio exists only on Raspberry Pi, and does not support the "
+            "Pi 5. Build with -DCBEAM_BACKEND=sim elsewhere.")
     endif()
 
     target_sources(cbeam PRIVATE src/pigpiodriver.h src/pigpiodriver.cpp)
-    target_include_directories(cbeam PRIVATE ${PIGPIO_IF2_INCLUDE_DIR})
+    target_include_directories(cbeam PRIVATE
+        ${PIGPIO_IF2_INCLUDE_DIR} ${PIGPIO_INCLUDE_DIR})
     target_link_libraries(cbeam PRIVATE ${PIGPIO_IF2_LIBRARY})
     target_compile_definitions(cbeam PRIVATE CBEAM_HAVE_GPIO)
 endif()

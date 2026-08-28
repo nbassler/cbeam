@@ -167,7 +167,8 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             ca-certificates git cmake make g++ dpkg-dev \
-            libpigpiod-if-dev ${{ matrix.qt }} file
+            libpigpio-dev libpigpiod-if-dev \
+            ${{ matrix.qt }} file
 
       - uses: actions/checkout@v7
         with:

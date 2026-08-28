@@ -49,7 +49,7 @@ machine out of memory.
 
 | Option | Default | |
 | --- | --- | --- |
-| `CBEAM_BACKEND` | `sim` | `sim` simulates motion and builds anywhere. `gpio` additionally compiles in the pigpio driver, so the GUI's **Simulation** tickbox can be cleared and the rail actually moves. Needs `libpigpiod-if-dev`, and pigpio supports Pi 4 and earlier only. This decides what is *available*, not what is *used* — see below. |
+| `CBEAM_BACKEND` | `sim` | `sim` simulates motion and builds anywhere. `gpio` additionally compiles in the pigpio driver, so the GUI's **Simulation** tickbox can be cleared and the rail actually moves. Needs `libpigpio-dev` and `libpigpiod-if-dev` (the second header includes the first), and pigpio supports Pi 4 and earlier only. This decides what is *available*, not what is *used* — see below. |
 | `CBEAM_BUILD_TESTS` | `ON` | Set `OFF` to skip the test target. |
 | `CBEAM_QT_VERSION` | `auto` | `auto` prefers Qt 6 and falls back to Qt 5. Force with `5` or `6`. The configure output names the version actually used — worth a glance on a machine that has both. |
 
