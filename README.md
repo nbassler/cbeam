@@ -16,6 +16,13 @@ Tr8×8-4p leadscrew (4 start, 2 mm pitch, 8 mm of travel per revolution) with a
 The app is meant to be built and run **on the Pi**, reached over `ssh -X`. There
 is no client/server split.
 
+The target is a **Raspberry Pi 4 Model B**, which settles how step pulses will
+eventually be generated: `pigpio` clocks a pulse train out over DMA, immune to
+scheduler jitter, and takes a per-pulse delay list — so the acceleration ramp
+becomes part of the waveform rather than something a timer has to chase. That
+option exists only up to the Pi 4; the Pi 5's RP1 moved the GPIO block and
+pigpio does not work there.
+
 ## Build
 
 ```sh
@@ -27,6 +34,15 @@ ctest --test-dir build --output-on-failure
 
 Needs Qt 6 (Core, Gui, Widgets, Test) and CMake ≥ 3.16. All of those are in
 `qt6-base-dev`; there is no extra package for the tests.
+
+> **Pi OS Bookworm (Debian 12) or newer, 64-bit.** Qt 6 first appears in Debian
+> 12 — Bullseye has no `qt6-base-dev` at all, only Qt 5, so this will not build
+> there. Raspberry Pi do not support in-place Bullseye→Bookworm upgrades; use a
+> fresh image. 64-bit also happens to be what VS Code's Remote-SSH server needs.
+
+On a 1 GB Pi, build with `-j2` rather than `--parallel`: g++ on Qt sources can
+take several hundred MB per translation unit, and four at once will run the
+machine out of memory.
 
 | Option | Default | |
 | --- | --- | --- |
