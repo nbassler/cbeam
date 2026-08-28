@@ -1,225 +1,173 @@
-#include <iostream>
 #include "model.h"
-#include "ui_slider.h"
-#include "limits.h"
+#include "config.h"
 
-#include <QDebug>
+#include <QtGlobal>
+#include <cmath>
 
-using namespace std;
+Model::Model(QObject *parent) :
+    Model(std::make_unique<SimDriver>(), parent)
+{}
 
-Model::Model()
+Model::Model(std::unique_ptr<StepDriver> driver, QObject *parent) :
+    QObject(parent),
+    m_driver(std::move(driver)),
+    m_stepCurrent(0),
+    m_stepTarget(0),
+    m_stepLlim(stepsFromMm(CB_LLIM_MM)),
+    m_stepUlim(stepsFromMm(CB_ULIM_MM))
 {
-    mm_per_step  = CB_MM_PER_STEP;             // mm per step
-    step_current = 0;
-    step_goto    = 0;
-    step_llim    = (int)CB_LLIM / mm_per_step; // lower step limit
-    step_ulim    = (int)CB_ULIM / mm_per_step; // upper step limit
+    m_timer.setInterval(CB_TICK_MS);
+    connect(&m_timer, &QTimer::timeout, this, &Model::tick);
 }
 
-void go();
-void zero();
+double Model::mmFromSteps(int steps)
+{
+    return steps * CB_MM_PER_STEP;
+}
 
-void set_step(int);
-void set_step_llim(int);
-void set_step_ulim(int);
-void set_step_delta(double);
+int Model::stepsFromMm(double mm)
+{
+    return static_cast<int>(std::lround(mm / CB_MM_PER_STEP));
+}
 
-void set_mm(double);
-void set_mm_llim(double);
-void set_mm_ulim(double);
-void set_mm_delta(double);
+int Model::clampToLimits(int steps) const
+{
+    return qBound(m_stepLlim, steps, m_stepUlim);
+}
 
+void Model::setTargetSteps(int steps)
+{
+    m_stepTarget = clampToLimits(steps);
+
+    // Emitted unconditionally, even when the target did not move.  The view
+    // writes this value back into the slider and the mm box with their signals
+    // blocked, which is what snaps a typed-in mm value onto the exact mm of the
+    // nearest step, and is also what stops the echo from coming back here.
+    emit targetChanged(m_stepTarget, mmFromSteps(m_stepTarget));
+}
+
+void Model::setTargetMm(double mm)
+{
+    // The only mm -> step conversion on the control path.
+    setTargetSteps(stepsFromMm(mm));
+}
+
+void Model::setLlimMm(double mm)
+{
+    m_stepLlim = stepsFromMm(mm);
+
+    if (m_stepLlim > m_stepUlim)
+        m_stepUlim = m_stepLlim;
+    publishLimits();
+}
+
+void Model::setUlimMm(double mm)
+{
+    m_stepUlim = stepsFromMm(mm);
+
+    if (m_stepUlim < m_stepLlim)
+        m_stepLlim = m_stepUlim;
+    publishLimits();
+}
+
+void Model::publishLimits()
+{
+    emit limitsChanged(m_stepLlim, m_stepUlim,
+                       mmFromSteps(m_stepLlim), mmFromSteps(m_stepUlim));
+
+    // Pull the target back into the new window.  The carriage itself is left
+    // where it is: narrowing the limits must not teleport hardware that is
+    // already parked outside them.
+    setTargetSteps(m_stepTarget);
+}
 
 void Model::zero()
 {
-    step_current  = 0;
-    step_goto     = 0;
-    step_ulim    -= step_llim; // shift upper limit down accordingly
-    step_llim     = 0;
-    step_goto_box = 0;
-    print_state();
-    updatePosUI();
-    updateLimUI();
-    updateGotoUI();
+    // Declare wherever we are now to be zero, and slide the whole travel window
+    // down with us so the same physical span stays reachable.  Shifting by the
+    // current position is the point of the button; shifting by the lower limit
+    // (as this used to) only did the right thing while parked at that limit.
+    const int offset = m_stepCurrent;
+
+    m_stepCurrent -= offset; // 0, by construction
+    m_stepTarget  -= offset;
+    m_stepLlim    -= offset;
+    m_stepUlim    -= offset;
+
+    publishAll();
 }
 
-void Model::move()
+void Model::go()
 {
-    std::cout << "b";
+    if (m_stepCurrent == m_stepTarget)
+        return;
 
-    if (step_goto < step_llim)
-        step_goto = step_llim;
-
-    if (step_goto > step_ulim)
-        step_goto = step_ulim;
-
-    while (step_current != step_goto)
+    if (!m_timer.isActive())
     {
-        if (step_goto > step_current)
-            step_current++;
-        else
-            step_current--;
-        std::cout << "z";
+        m_timer.start();
+        emit movingChanged(true);
+    }
+}
+
+void Model::stop()
+{
+    if (!m_timer.isActive())
+        return;
+    halt();
+}
+
+// Come to rest where we are. The target follows the carriage, so a second
+// press of Go does not silently resume a move that was just aborted.
+void Model::halt()
+{
+    m_timer.stop();
+    setTargetSteps(m_stepCurrent);
+    emit movingChanged(false);
+}
+
+void Model::jog(int deltaSteps)
+{
+    // Measured from where we are headed, not from where we happen to be: a jog
+    // issued while an earlier one is still running has to add to it, otherwise
+    // a quick double click on +1 travels one step instead of two.
+    const int base = isMoving() ? m_stepTarget : m_stepCurrent;
+
+    setTargetSteps(base + deltaSteps);
+    go();
+}
+
+void Model::tick()
+{
+    const int remaining = m_stepTarget - m_stepCurrent;
+    const int stride    = qBound(-CB_STEPS_PER_TICK, remaining,
+                                 CB_STEPS_PER_TICK);
+    const int taken     = m_driver->step(stride);
+
+    m_stepCurrent += taken;
+    emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
+
+    if (taken != stride)
+    {
+        // The driver would not go the whole way. Abandon the rest of the move
+        // rather than keep asking; grinding a carriage into an engaged end
+        // stop is exactly what the switches are there to prevent.
+        halt();
+        emit travelInterrupted();
+        return;
     }
 
-    std::cout << "b...\n";
-    updatePosUI();
-    print_state();
-}
-
-void Model::set_step_goto(int var)
-{
-    step_goto_box = var;
-    updateGotoUI();
-}
-
-// void Model::set_step_delta(int var)
-// {
-//     step_goto = step_current + (var / mm_per_step);
-// }
-
-void Model::go() // in case GO button was hit
-{
-    step_goto = step_goto_box;
-    move();
-}
-
-void Model::set_step_p1()
-{
-    step_goto = step_current + 1;
-    move();
-}
-
-void Model::set_step_m1()
-{
-    step_goto = step_current - 1;
-    move();
-}
-
-void Model::set_step_p10()
-{
-    step_goto = step_current + 10;
-    move();
-}
-
-void Model::set_step_m10()
-{
-    step_goto = step_current - 10;
-    move();
-}
-
-void Model::set_step_llim(int var)
-{
-    step_llim = var;
-    updateLimUI();
-}
-
-void Model::set_step_ulim(int var)
-{
-    step_ulim = var;
-    updateLimUI();
-}
-
-void Model::set_mm_goto(double var)
-{
-    int step = round(var / mm_per_step);
-
-    qDebug() << "set_mm_goto: " << step;
-    set_step_goto(step);
-}
-
-// void Model::set_mm_delta(double var)
-// {
-//     set_step_goto((int)(step_current + var / mm_per_step));
-// }
-
-void Model::set_mm_llim(double var)
-{
-    set_step_llim((int)(var / mm_per_step));
-}
-
-void Model::set_mm_ulim(double var)
-{
-    set_step_ulim((int)(var / mm_per_step));
-}
-
-double Model::get_step_llim(void)
-{
-    return step_llim;
-}
-
-double Model::get_step_ulim(void)
-{
-    return step_ulim;
-}
-
-double Model::get_step_current(void)
-{
-    return step_current;
-}
-
-double Model::get_mm_llim(void)
-{
-    return step_llim * mm_per_step;
-}
-
-double Model::get_mm_ulim(void)
-{
-    return step_ulim * mm_per_step;
-}
-
-double Model::get_mm_per_step(void)
-{
-    return mm_per_step;
-}
-
-void Model::updatePosUI()
-{
-    QString qstr =
-        QString("%1 mm").arg(qFabs(step_current * mm_per_step), 0, 'f',
-                             CB_DIGITS);
-    emit updatePosLabel(qstr);
-}
-
-void Model::updateGotoUI()
-{
-    double pos = myround((step_goto_box * mm_per_step), CB_DIGITS);
-    emit   updateSpinBoxPos(pos);
-    emit   updateHSliderPos(step_goto_box);
-}
-
-void Model::updateLimUI()
-{
-    double dl = myround((step_llim * mm_per_step), CB_DIGITS);
-    double du = myround((step_ulim * mm_per_step), CB_DIGITS);
-    emit   updateHSliderLim(step_llim, step_ulim);
-    emit   updateGotoBoxLlim(dl);
-    emit   updateGotoBoxUlim(du);
-    emit   updateDSLlim(dl);
-    emit   updateDSUlim(du);
-}
-
-void Model::print_state()
-{
-    qDebug() << "-------------------------------";
-    qDebug() << "step_current" << step_current;
-    qDebug() << "step_goto" << step_goto;
-    qDebug() << "step_goto_mm" << step_goto * mm_per_step;
-    qDebug() << "step_llim" << step_llim;
-    qDebug() << "step_ulim" << step_ulim;
-}
-
-double Model::myround(double var, int digits)
-{
-    for (int i = 0; i < digits; i++)
+    if (m_stepCurrent == m_stepTarget)
     {
-        var *= 10.0;
+        m_timer.stop();
+        emit movingChanged(false);
     }
-    var = round(var);
+}
 
-    for (int i = 0; i < digits; i++)
-    {
-        var *= 0.1;
-    }
-    return var;
+void Model::publishAll()
+{
+    emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
+    emit limitsChanged(m_stepLlim, m_stepUlim,
+                       mmFromSteps(m_stepLlim), mmFromSteps(m_stepUlim));
+    emit targetChanged(m_stepTarget, mmFromSteps(m_stepTarget));
+    emit movingChanged(isMoving());
 }

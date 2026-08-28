@@ -6,239 +6,382 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>385</width>
-    <height>411</height>
+    <width>520</width>
+    <height>300</height>
    </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>CBeam Controller</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
    <layout class="QVBoxLayout" name="verticalLayout_2">
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
-      <item>
-       <widget class="QFrame" name="frame">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_4">
-         <item row="0" column="0">
-          <layout class="QVBoxLayout" name="verticalLayout">
-           <property name="sizeConstraint">
-            <enum>QLayout::SetDefaultConstraint</enum>
+     <widget class="QFrame" name="frame">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_pos">
+         <item>
+          <widget class="QLabel" name="label_currentPos">
+           <property name="font">
+            <font>
+             <family>Monospace</family>
+             <pointsize>20</pointsize>
+             <bold>true</bold>
+            </font>
            </property>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout">
-             <item>
-              <widget class="QLabel" name="label_currentPos">
-               <property name="font">
-                <font>
-                 <family>Monospace</family>
-                 <pointsize>20</pointsize>
-                 <bold>true</bold>
-                </font>
-               </property>
-               <property name="text">
-                <string>0.000 mm</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QGridLayout" name="gridLayout">
-               <item row="1" column="1">
-                <widget class="QPushButton" name="pushButton_m10">
-                 <property name="text">
-                  <string>-10</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QPushButton" name="pushButton_m1">
-                 <property name="text">
-                  <string>-1</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="0">
-                <widget class="QPushButton" name="pushButton_p1">
-                 <property name="text">
-                  <string>+1</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QPushButton" name="pushButton_p10">
-                 <property name="text">
-                  <string>+10</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-            </layout>
-           </item>
-          </layout>
+           <property name="text">
+            <string>0.000 mm</string>
+           </property>
+          </widget>
          </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QFrame" name="frame_2">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_5">
-         <item row="0" column="0">
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Go to</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_goPos">
-             <property name="suffix">
-              <string> mm</string>
-             </property>
-             <property name="decimals">
-              <number>3</number>
-             </property>
-             <property name="maximum">
-              <double>500.000000000000000</double>
-             </property>
-             <property name="singleStep">
-              <double>1.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_go">
-             <property name="text">
-              <string>Go</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item row="1" column="0">
-          <widget class="QSlider" name="horizontalSlider">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+         <item>
+          <widget class="QLabel" name="label_currentSteps">
+           <property name="font">
+            <font>
+             <family>Monospace</family>
+            </font>
+           </property>
+           <property name="toolTip">
+            <string>Authoritative position. Millimetres above are derived from this.</string>
+           </property>
+           <property name="text">
+            <string>0 steps</string>
            </property>
           </widget>
          </item>
         </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QFrame" name="frame_3">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_6">
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="gridLayout">
+         <!-- Button text and tooltips are set from MainWindow, since they
+              follow whatever increment the column is set to. The strings
+              here are only so Designer shows something sensible. -->
          <item row="0" column="0">
-          <layout class="QGridLayout" name="gridLayout_2">
-           <item row="0" column="2">
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_ulim">
-             <property name="suffix">
-              <string> mm</string>
-             </property>
-             <property name="maximum">
-              <double>500.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_llim">
-             <property name="suffix">
-              <string> mm</string>
-             </property>
-             <property name="minimum">
-              <double>-500.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>500.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>Limits min/max</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_4">
-             <property name="text">
-              <string/>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QPushButton" name="pushButton_zero">
-             <property name="text">
-              <string>Zero</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
+          <widget class="QPushButton" name="pushButton_plusA">
+           <property name="text">
+            <string>+1</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="pushButton_plusB">
+           <property name="text">
+            <string>+10</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QPushButton" name="pushButton_plusC">
+           <property name="text">
+            <string>+100</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QPushButton" name="pushButton_minusA">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QPushButton" name="pushButton_minusB">
+           <property name="text">
+            <string>-10</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QPushButton" name="pushButton_minusC">
+           <property name="text">
+            <string>-100</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QSpinBox" name="spinBox_jogA">
+           <property name="alignment">
+            <set>Qt::AlignHCenter</set>
+           </property>
+           <property name="value">
+            <number>1</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="spinBox_jogB">
+           <property name="alignment">
+            <set>Qt::AlignHCenter</set>
+           </property>
+           <property name="value">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QSpinBox" name="spinBox_jogC">
+           <property name="alignment">
+            <set>Qt::AlignHCenter</set>
+           </property>
+           <property name="value">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <!-- Millimetre equivalents, filled in from MainWindow. -->
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_jogMmA">
+           <property name="alignment">
+            <set>Qt::AlignHCenter|Qt::AlignVCenter</set>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLabel" name="label_jogMmB">
+           <property name="alignment">
+            <set>Qt::AlignHCenter|Qt::AlignVCenter</set>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="2">
+          <widget class="QLabel" name="label_jogMmC">
+           <property name="alignment">
+            <set>Qt::AlignHCenter|Qt::AlignVCenter</set>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
          </item>
         </layout>
-       </widget>
-      </item>
-     </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="frame_2">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_goto">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Go to</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="doubleSpinBox_goPos">
+           <property name="toolTip">
+            <string>Snaps to the nearest reachable step when you commit the value.</string>
+           </property>
+           <property name="suffix">
+            <string> mm</string>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_targetSteps">
+           <property name="font">
+            <font>
+             <family>Monospace</family>
+            </font>
+           </property>
+           <property name="text">
+            <string>= 0 steps</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>10</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_go">
+           <property name="text">
+            <string>Go</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_stop">
+           <property name="toolTip">
+            <string>Abort travel and hold at the current step</string>
+           </property>
+           <property name="text">
+            <string>Stop</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QSlider" name="horizontalSlider">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="frame_3">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Limits min/max</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QDoubleSpinBox" name="doubleSpinBox_llim">
+         <property name="suffix">
+          <string> mm</string>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-1000.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1000.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QDoubleSpinBox" name="doubleSpinBox_ulim">
+         <property name="suffix">
+          <string> mm</string>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-1000.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1000.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="checkBox_lockLimits">
+         <property name="toolTip">
+          <string>While locked, the limits and Zero cannot be changed by a stray click</string>
+         </property>
+         <property name="text">
+          <string>Lock limits</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QPushButton" name="pushButton_zero">
+         <property name="toolTip">
+          <string>Call the present position zero and slide the travel window with it</string>
+         </property>
+         <property name="text">
+          <string>Zero</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <spacer name="verticalSpacer">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>10</height>
+       </size>
+      </property>
+     </spacer>
     </item>
    </layout>
-  </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>385</width>
-     <height>21</height>
-    </rect>
-   </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <tabstops>
-  <tabstop>doubleSpinBox_llim</tabstop>
-  <tabstop>pushButton_zero</tabstop>
-  <tabstop>doubleSpinBox_ulim</tabstop>
-  <tabstop>pushButton_p1</tabstop>
-  <tabstop>pushButton_p10</tabstop>
-  <tabstop>pushButton_m10</tabstop>
-  <tabstop>pushButton_go</tabstop>
-  <tabstop>pushButton_m1</tabstop>
   <tabstop>doubleSpinBox_goPos</tabstop>
-  <tabstop>doubleSpinBox_ulim</tabstop>
+  <tabstop>pushButton_go</tabstop>
+  <tabstop>pushButton_stop</tabstop>
+  <tabstop>horizontalSlider</tabstop>
+  <tabstop>pushButton_plusA</tabstop>
+  <tabstop>pushButton_plusB</tabstop>
+  <tabstop>pushButton_plusC</tabstop>
+  <tabstop>pushButton_minusA</tabstop>
+  <tabstop>pushButton_minusB</tabstop>
+  <tabstop>pushButton_minusC</tabstop>
+  <tabstop>spinBox_jogA</tabstop>
+  <tabstop>spinBox_jogB</tabstop>
+  <tabstop>spinBox_jogC</tabstop>
+  <tabstop>checkBox_lockLimits</tabstop>
   <tabstop>doubleSpinBox_llim</tabstop>
+  <tabstop>doubleSpinBox_ulim</tabstop>
   <tabstop>pushButton_zero</tabstop>
  </tabstops>
  <resources/>
