@@ -39,6 +39,8 @@ public:
   int stepLlim() const { return m_stepLlim; }
   int stepUlim() const { return m_stepUlim; }
   bool isMoving() const { return m_timer.isActive(); }
+  bool positionKnown() const { return m_positionKnown; }
+  bool estopped() const { return m_estopped; }
 
   static double mmFromSteps(int steps);
   static int stepsFromMm(double mm); // nearest reachable step
@@ -51,6 +53,7 @@ public slots:
 
   void go();   // travel to the current target
   void stop(); // abort travel and hold here
+  void estop();
   void zero(); // call the present position zero
 
   void setTargetSteps(int steps);
@@ -66,6 +69,10 @@ signals:
   void limitsChanged(int loSteps, int hiSteps, double loMm, double hiMm);
   void movingChanged(bool moving);
   void driverChanged(const QString &name);
+  void positionKnownChanged(bool known);
+  void estoppedChanged(bool estopped);
+  void emergencyStopped();
+  void driverNotice(const QString &message);
 
   // The driver stopped short of what was asked -- an end stop, in a hardware
   // build. Travel has already been halted by the time this fires.
@@ -76,6 +83,8 @@ private:
   void halt();
   void publishLimits();
   int clampToLimits(int steps) const;
+  bool usesAsyncDriver() const;
+  void syncAsyncDriver();
 
   std::unique_ptr<StepDriver> m_driver;
 
@@ -88,6 +97,8 @@ private:
   int m_stepLlim;
   int m_stepUlim;
   QTimer m_timer;
+  bool m_positionKnown = true;
+  bool m_estopped = false;
 };
 
 #endif // MODEL_H

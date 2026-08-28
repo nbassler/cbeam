@@ -122,6 +122,7 @@ add_dependencies(cbeam cbeam_version)
 target_include_directories(cbeam PRIVATE ${CBEAM_VERSION_DIR})
 
 if(CBEAM_BACKEND STREQUAL "gpio")
+    find_package(Threads REQUIRED)
     find_path(PIGPIO_IF2_INCLUDE_DIR NAMES pigpiod_if2.h)
     find_library(PIGPIO_IF2_LIBRARY NAMES pigpiod_if2)
 
@@ -146,16 +147,37 @@ if(CBEAM_BACKEND STREQUAL "gpio")
             "-DCBEAM_BACKEND=sim anywhere that is not a Pi 4 or earlier.")
     endif()
 
-    target_sources(cbeam PRIVATE src/pigpiodriver.h src/pigpiodriver.cpp)
+    target_sources(cbeam PRIVATE
+        src/helperdriver.h
+        src/helperdriver.cpp
+        src/pigpiodriver.h
+        src/pigpiodriver.cpp
+    )
     target_include_directories(cbeam PRIVATE
         ${PIGPIO_IF2_INCLUDE_DIR} ${PIGPIO_INCLUDE_DIR})
     target_link_libraries(cbeam PRIVATE ${PIGPIO_IF2_LIBRARY})
     target_compile_definitions(cbeam PRIVATE CBEAM_HAVE_GPIO)
+
+    add_executable(cbeam-helper
+        src/helpermain.cpp
+        src/motionhelper.h
+        src/motionhelper.cpp
+    )
+    target_include_directories(cbeam-helper PRIVATE
+        src ${PIGPIO_IF2_INCLUDE_DIR} ${PIGPIO_INCLUDE_DIR})
+    target_link_libraries(cbeam-helper PRIVATE
+        ${PIGPIO_IF2_LIBRARY}
+        Threads::Threads
+    )
 endif()
 
 foreach(target cbeam cbeam_core)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
 endforeach()
+
+if(TARGET cbeam-helper)
+    target_compile_options(cbeam-helper PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 message(STATUS "cbeam motion backend: ${CBEAM_BACKEND}")
 message(STATUS "cbeam Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
@@ -175,6 +197,10 @@ endif()
 # CMakeLists yields a package depending on libqt5widgets5 when built on
 # Bullseye and libqt6widgets6 on Bookworm, without knowing which is which.
 install(TARGETS cbeam RUNTIME DESTINATION bin)
+
+if(TARGET cbeam-helper)
+    install(TARGETS cbeam-helper RUNTIME DESTINATION bin)
+endif()
 
 # Package version is the nearest tag, resolved at configure time. This is not
 # the same as CB_VERSION in the window title, which is resolved per build and

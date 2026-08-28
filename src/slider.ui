@@ -253,12 +253,22 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_stop">
+         <widget class="QPushButton" name="pushButton_stop">
            <property name="toolTip">
             <string>Abort travel and hold at the current step</string>
            </property>
            <property name="text">
             <string>Stop</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_estop">
+           <property name="toolTip">
+            <string>Immediate stop. The carriage position must be re-zeroed afterwards.</string>
+           </property>
+           <property name="text">
+            <string>ESTOP</string>
            </property>
           </widget>
          </item>
@@ -382,6 +392,7 @@
   <tabstop>doubleSpinBox_goPos</tabstop>
   <tabstop>pushButton_go</tabstop>
   <tabstop>pushButton_stop</tabstop>
+  <tabstop>pushButton_estop</tabstop>
   <tabstop>horizontalSlider</tabstop>
   <tabstop>pushButton_plusA</tabstop>
   <tabstop>pushButton_plusB</tabstop>

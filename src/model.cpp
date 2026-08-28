@@ -26,6 +26,72 @@ int Model::clampToLimits(int steps) const {
   return qBound(m_stepLlim, steps, m_stepUlim);
 }
 
+bool Model::usesAsyncDriver() const {
+  return m_driver && m_driver->controlsOwnMotion();
+}
+
+void Model::syncAsyncDriver() {
+  DriverStatus status;
+
+  if (!m_driver->poll(status)) {
+    const std::string text = m_driver->lastError();
+
+    if (!text.empty())
+      emit driverNotice(QString::fromStdString(text));
+    return;
+  }
+
+  const bool wasMoving = m_timer.isActive();
+  const bool wasKnown = m_positionKnown;
+  const bool wasEstopped = m_estopped;
+
+  if (m_stepCurrent != status.current) {
+    m_stepCurrent = status.current;
+    emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
+  }
+
+  if (m_stepTarget != status.target) {
+    m_stepTarget = status.target;
+    emit targetChanged(m_stepTarget, mmFromSteps(m_stepTarget));
+  }
+
+  if (m_positionKnown != status.positionKnown) {
+    m_positionKnown = status.positionKnown;
+    emit positionKnownChanged(m_positionKnown);
+  }
+
+  const bool estopped = status.state == MotionState::Estopped;
+
+  if (m_estopped != estopped) {
+    m_estopped = estopped;
+    emit estoppedChanged(m_estopped);
+  }
+
+  const bool moving = status.state == MotionState::Moving ||
+                      status.state == MotionState::Stopping;
+
+  if (moving && !wasMoving) {
+    if (!m_timer.isActive())
+      m_timer.start();
+    emit movingChanged(true);
+  }
+
+  if (!moving && wasMoving) {
+    m_timer.stop();
+    emit movingChanged(false);
+  }
+
+  if (!status.positionKnown && wasKnown)
+    emit emergencyStopped();
+
+  if (status.state == MotionState::Fault && !status.detail.empty())
+    emit driverNotice(QString::fromStdString(status.detail));
+
+  if (estopped && !wasEstopped)
+    emit driverNotice(
+        tr("Emergency stop - position is now unknown and must be zeroed"));
+}
+
 void Model::setTargetSteps(int steps) {
   m_stepTarget = clampToLimits(steps);
 
@@ -68,6 +134,30 @@ void Model::publishLimits() {
 }
 
 void Model::zero() {
+  if (usesAsyncDriver()) {
+    const int offset = m_stepCurrent;
+    const bool wasKnown = m_positionKnown;
+
+    if (!m_driver->zeroHere()) {
+      const std::string text = m_driver->lastError();
+
+      if (!text.empty())
+        emit driverNotice(QString::fromStdString(text));
+      return;
+    }
+
+    if (wasKnown) {
+      m_stepTarget -= offset;
+      m_stepLlim -= offset;
+      m_stepUlim -= offset;
+      emit limitsChanged(m_stepLlim, m_stepUlim, mmFromSteps(m_stepLlim),
+                         mmFromSteps(m_stepUlim));
+    }
+
+    syncAsyncDriver();
+    return;
+  }
+
   // Declare wherever we are now to be zero, and slide the whole travel window
   // down with us so the same physical span stays reachable.  Shifting by the
   // current position is the point of the button; shifting by the lower limit
@@ -86,12 +176,49 @@ bool Model::setDriver(std::unique_ptr<StepDriver> driver) {
   if (!driver || isMoving())
     return false;
 
+  m_timer.stop();
   m_driver = std::move(driver);
+  m_positionKnown = true;
+  m_estopped = false;
   emit driverChanged(QString::fromLatin1(m_driver->name()));
+  emit positionKnownChanged(m_positionKnown);
+  emit estoppedChanged(m_estopped);
+
+  if (usesAsyncDriver())
+    syncAsyncDriver();
+
   return true;
 }
 
 void Model::go() {
+  if (usesAsyncDriver()) {
+    if (!m_positionKnown) {
+      emit driverNotice(tr("Position is unknown - zero the carriage before moving"));
+      return;
+    }
+
+    if (m_estopped) {
+      emit driverNotice(tr("Emergency stop is latched - zero the carriage to recover"));
+      return;
+    }
+
+    if (!m_driver->moveTo(m_stepTarget)) {
+      const std::string text = m_driver->lastError();
+
+      if (!text.empty())
+        emit driverNotice(QString::fromStdString(text));
+      return;
+    }
+
+    if (!m_timer.isActive()) {
+      m_timer.start();
+      emit movingChanged(true);
+    }
+
+    syncAsyncDriver();
+    return;
+  }
+
   if (m_stepCurrent == m_stepTarget)
     return;
 
@@ -107,6 +234,22 @@ void Model::go() {
 }
 
 void Model::stop() {
+  if (usesAsyncDriver()) {
+    if (!m_driver->stopMotion()) {
+      const std::string text = m_driver->lastError();
+
+      if (!text.empty())
+        emit driverNotice(QString::fromStdString(text));
+      return;
+    }
+
+    if (!m_timer.isActive())
+      m_timer.start();
+
+    syncAsyncDriver();
+    return;
+  }
+
   if (!m_timer.isActive())
     return;
 
@@ -121,6 +264,24 @@ void Model::stop() {
 
   setTargetSteps(m_stepCurrent +
                  direction * static_cast<int>(std::ceil(braking)));
+}
+
+void Model::estop() {
+  if (usesAsyncDriver()) {
+    if (!m_driver->estop()) {
+      const std::string text = m_driver->lastError();
+
+      if (!text.empty())
+        emit driverNotice(QString::fromStdString(text));
+      return;
+    }
+
+    syncAsyncDriver();
+    return;
+  }
+
+  halt();
+  emit emergencyStopped();
 }
 
 // Come to rest where we are. The target follows the carriage, so a second
@@ -146,6 +307,11 @@ void Model::jog(int deltaSteps) {
 }
 
 void Model::tick() {
+  if (usesAsyncDriver()) {
+    syncAsyncDriver();
+    return;
+  }
+
   const int remaining = m_stepTarget - m_stepCurrent;
 
   if (remaining == 0) {
@@ -211,10 +377,15 @@ void Model::tick() {
 }
 
 void Model::publishAll() {
+  if (usesAsyncDriver())
+    syncAsyncDriver();
+
   emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
   emit limitsChanged(m_stepLlim, m_stepUlim, mmFromSteps(m_stepLlim),
                      mmFromSteps(m_stepUlim));
   emit targetChanged(m_stepTarget, mmFromSteps(m_stepTarget));
   emit movingChanged(isMoving());
   emit driverChanged(QString::fromLatin1(m_driver->name()));
+  emit positionKnownChanged(m_positionKnown);
+  emit estoppedChanged(m_estopped);
 }

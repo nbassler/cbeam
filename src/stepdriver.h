@@ -1,6 +1,8 @@
 #ifndef STEPDRIVER_H
 #define STEPDRIVER_H
 
+#include <string>
+
 // The seam between the position model and whatever actually moves the rail.
 //
 // Model deals only in step counts and never touches hardware itself, so the
@@ -17,6 +19,22 @@ enum class StepResult {
 struct StepOutcome {
   int taken = 0;
   StepResult result = StepResult::Done;
+};
+
+enum class MotionState {
+  Idle,
+  Moving,
+  Stopping,
+  Estopped,
+  Fault,
+};
+
+struct DriverStatus {
+  int current = 0;
+  int target = 0;
+  MotionState state = MotionState::Idle;
+  bool positionKnown = true;
+  std::string detail;
 };
 
 class StepDriver {
@@ -41,6 +59,22 @@ public:
   // Shown in the status bar, so it is never a mystery whether what is on
   // screen is driving a real rail.
   virtual const char *name() const = 0;
+
+  // Helper-backed drivers own the whole move and are polled for status,
+  // rather than being handed one burst of steps per timer tick.
+  virtual bool controlsOwnMotion() const { return false; }
+  virtual bool moveTo(int targetSteps) {
+    (void)targetSteps;
+    return false;
+  }
+  virtual bool stopMotion() { return false; }
+  virtual bool estop() { return false; }
+  virtual bool zeroHere() { return false; }
+  virtual bool poll(DriverStatus &status) {
+    (void)status;
+    return false;
+  }
+  virtual std::string lastError() const { return {}; }
 
   // A NOTE FOR WHOEVER WRITES THE GPIO BACKEND
   //

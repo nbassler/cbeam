@@ -4,7 +4,7 @@
 #include "version.h"
 
 #ifdef CBEAM_HAVE_GPIO
-#include "pigpiodriver.h"
+#include "helperdriver.h"
 #endif
 
 #include <QCheckBox>
@@ -41,6 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
   // View -> model.
   connect(ui->pushButton_go, &QPushButton::clicked, m_model, &Model::go);
   connect(ui->pushButton_stop, &QPushButton::clicked, m_model, &Model::stop);
+  connect(ui->pushButton_estop, &QPushButton::clicked, m_model, &Model::estop);
   connect(ui->pushButton_zero, &QPushButton::clicked, m_model, &Model::zero);
 
   connect(ui->horizontalSlider, &QSlider::valueChanged, m_model,
@@ -70,6 +71,16 @@ MainWindow::MainWindow(QWidget *parent)
   connect(m_model, &Model::movingChanged, this, [this](bool moving) {
     m_moving = moving;
     updateControlStates();
+  });
+  connect(m_model, &Model::positionKnownChanged, this,
+          [this](bool) { updateControlStates(); });
+  connect(m_model, &Model::estoppedChanged, this,
+          [this](bool) { updateControlStates(); });
+  connect(m_model, &Model::driverNotice, this,
+          [this](const QString &message) { statusBar()->showMessage(message); });
+  connect(m_model, &Model::emergencyStopped, this, [this] {
+    statusBar()->showMessage(
+        tr("Emergency stop - position is unknown until Zero is pressed"));
   });
 
   // Fires after movingChanged(false), so this message is the one left
@@ -185,6 +196,10 @@ void MainWindow::showLimits(int loSteps, int hiSteps, double loMm,
   }
 }
 
+bool MainWindow::hardwareActive() const {
+  return m_gpioAvailable && !ui->checkBox_simulation->isChecked();
+}
+
 // The Simulation tickbox decides whether pulses reach the pins. It always
 // starts ticked: a freshly launched controller must not be able to move a rail
 // until someone says so.
@@ -215,9 +230,9 @@ void MainWindow::setSimulation(bool simulated) {
     driver = std::make_unique<SimDriver>();
   } else {
     try {
-      driver = std::make_unique<PigpioDriver>();
+      driver = std::make_unique<HelperDriver>();
     } catch (const std::exception &error) {
-      QMessageBox::warning(this, tr("Cannot reach the hardware"),
+      QMessageBox::warning(this, tr("Cannot start the motion helper"),
                            tr("Staying in simulation.\n\n%1")
                                .arg(QString::fromLatin1(error.what())));
       const QSignalBlocker block(ui->checkBox_simulation);
@@ -239,9 +254,12 @@ void MainWindow::setSimulation(bool simulated) {
 
 void MainWindow::updateControlStates() {
   const bool locked = ui->checkBox_lockLimits->isChecked();
+  const bool hardware = hardwareActive();
+  const bool canMove =
+      !hardware || (m_model->positionKnown() && !m_model->estopped());
 
   // Nothing may retarget the carriage mid-travel; Stop is the only way out.
-  ui->pushButton_go->setEnabled(!m_moving);
+  ui->pushButton_go->setEnabled(!m_moving && canMove);
   ui->horizontalSlider->setEnabled(!m_moving);
 
   for (const JogColumn &col : m_jog) {
@@ -256,6 +274,7 @@ void MainWindow::updateControlStates() {
   ui->doubleSpinBox_goPos->setEnabled(!m_moving);
 
   ui->pushButton_stop->setEnabled(m_moving);
+  ui->pushButton_estop->setEnabled(hardware);
 
   // Changing what emits pulses mid-travel is never intended.
   ui->checkBox_simulation->setEnabled(!m_moving && m_gpioAvailable);

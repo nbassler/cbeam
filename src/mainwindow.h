@@ -33,6 +33,7 @@ private:
   void showPosition(int steps, double mm);
   void showTarget(int steps, double mm);
   void showLimits(int loSteps, int hiSteps, double loMm, double hiMm);
+  bool hardwareActive() const;
 
   // Controls are gated by two independent things -- travel in progress, and
   // the limits lock -- so both are resolved in one place rather than by two
