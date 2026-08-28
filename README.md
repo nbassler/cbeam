@@ -198,12 +198,36 @@ Currently **248 steps/cm** (24.8 steps/mm, 0.040323 mm/step), in
 [src/config.h](src/config.h) as `CB_STEPS_PER_CM`. Full 400 mm travel is
 therefore 9920 steps, matching `src_rpi/test2.py`.
 
-> **This does not agree with the hardware, and is unresolved.** A C-Beam's
-> 8 mm lead with a 200 step/rev motor gives 200 ÷ 8 = 25 steps/mm = **250**
-> steps/cm exactly — which is what this file held originally. The 248 is the
-> same 0.8% off as `test2.py`'s 9920 versus a round 10000, and it is worth
-> 3.2 mm over full travel. To settle it: drive 9920 steps from a hard stop and
-> measure. 400.0 mm means 248 is right; 396.8 mm means it is really 250.
+This was measured, and it disagrees with the theory by 0.8%. The measurement
+wins for now, but the gap is unexplained.
+
+The theory: a C-Beam's Tr8×8-4p leadscrew moves 8 mm per revolution, and a 1.8°
+stepper takes 200 steps per revolution, so 200 ÷ 8 = 25 steps/mm = **250**
+steps/cm exactly. The measurement: driving ~30 cm at 250 reproducibly
+overshoots, which is what a true rate below 250 looks like — 7500 steps at an
+actual 248 steps/cm travels 30.24 cm, 2.4 mm long. That matches, so 248 stands.
+
+What is odd is the *size* of the gap. 0.8% is roughly fifty times the lead
+error of a rolled ACME screw, so manufacturing tolerance does not cover it, and
+no standard lead or microstep setting lands on 24.8 steps/mm.
+
+### Settling it
+
+A measurement at one distance cannot separate a scale error from a fixed
+offset: 2.4 mm of backlash or datum error looks exactly like 0.8% over 30 cm.
+Measuring several distances does separate them. Always approach from the same
+direction, so backlash is not in play:
+
+| Steps commanded | Nominal at 250 | If the rate is really 248 |
+| ---: | ---: | ---: |
+| 2500 | 100 mm | 100.8 mm |
+| 5000 | 200 mm | 201.6 mm |
+| 7500 | 300 mm | 302.4 mm |
+
+If the error grows in proportion — roughly 0.8, 1.6, 2.4 mm — the rate really
+is 248. If it is the *same* few mm at every distance, the rate is 250 and
+something is adding a constant offset. Either way it is worth 3.2 mm over full
+travel.
 
 The mm readouts use 3 decimals. That is deliberate and load-bearing: step
 spacing is 0.0403 mm, so 0.001 mm display resolution distinguishes every one of

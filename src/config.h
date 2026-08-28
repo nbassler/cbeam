@@ -14,7 +14,8 @@ constexpr double CB_ULIM_MM = 400.0;
 // measured in and divided down here rather than stored pre-divided, so the
 // number in this file is the one that can be checked against the hardware.
 //
-// UNRESOLVED: 248 is what was measured, but the hardware says 250.
+// 248 is measured, and it disagrees with the theory by 0.8%. The measurement
+// wins for now, but the gap has no explanation yet.
 //
 // The rig is an OpenBuilds C-Beam actuator: a Tr8*8-4p leadscrew (4 start,
 // 2 mm pitch, so 8 mm of travel per revolution) turned by a 1.8 degree
@@ -22,12 +23,21 @@ constexpr double CB_ULIM_MM = 400.0;
 //
 //     200 steps/rev / 8 mm/rev = 25 steps/mm = 250 steps/cm = 0.0400 mm/step
 //
-// exactly, and 250 is the value this file used originally. The 248 here comes
-// from src_rpi/test2.py (9920 steps / 400 mm), which is the same 0.8% off a
-// round 10000. Whether that 0.8% is real leadscrew error or an arithmetic
-// slip somewhere has not been established, and it is worth 3.2 mm over full
-// travel. Settle it by commanding 9920 steps from a hard stop and measuring:
-// 400.0 mm means 248 is right, 396.8 mm means it is really 250.
+// exactly. But driving ~30 cm at 250 reproducibly overshoots, which is what a
+// true rate below 250 looks like: 7500 steps at an actual 248 steps/cm travels
+// 30.24 cm, i.e. 2.4 mm long. That matches, and it is why this is 248.
+//
+// What has no explanation is the size of the gap. 0.8% is roughly fifty times
+// the lead error of a rolled ACME screw, so "manufacturing tolerance" does not
+// cover it, and no standard lead or microstep setting lands on 24.8 steps/mm.
+// Something systematic is unaccounted for.
+//
+// A single-distance measurement cannot tell a scale error from a fixed offset
+// -- 2.4 mm of backlash or datum error at one end looks identical to 0.8% over
+// 30 cm. Measuring several distances from the same approach direction
+// separates them: an error growing in proportion means the rate really is 248,
+// while a constant error means the rate is 250 and something adds a fixed
+// offset. See README.md.
 constexpr double CB_STEPS_PER_CM = 248.0;
 constexpr double CB_MM_PER_STEP = 10.0 / CB_STEPS_PER_CM;
 
