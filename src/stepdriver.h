@@ -7,20 +7,36 @@
 // same model code runs against the simulation on a desktop and against the
 // GPIO pins on the Pi.  Chosen at build time by the CBEAM_BACKEND option in
 // CMakeLists.txt.
+// What came of a request to move.
+enum class StepResult {
+  Done,    // the steps were emitted
+  Busy,    // the hardware is still working on the last lot; ask again later
+  Blocked, // it will not go further this way -- an end stop, most likely
+};
+
+struct StepOutcome {
+  int taken = 0;
+  StepResult result = StepResult::Done;
+};
+
 class StepDriver {
 public:
   virtual ~StepDriver() = default;
 
   // Advance the carriage by `steps`, signed; negative travels toward the
-  // lower limit.  Returns the number of steps actually taken, which may be
-  // fewer than asked for.
+  // lower limit.
   //
-  // A short count is how a driver says "I stopped early" -- an end stop
-  // engaged, most likely.  The model then halts and re-targets to wherever
-  // it really ended up, rather than carrying on with a position it believes
-  // but the hardware does not share.  That is the whole reason this returns
-  // a count instead of void.
-  virtual int step(int steps) = 0;
+  // Returns how many steps were actually emitted and why, if that is fewer
+  // than asked. Busy and Blocked both mean "nothing happened", but they need
+  // opposite responses: Busy is ordinary back-pressure and the move should
+  // continue, while Blocked means give up and re-target to where the carriage
+  // really is, rather than carrying on with a position the hardware does not
+  // share.
+  virtual StepOutcome step(int steps) = 0;
+
+  // Abandon anything still in flight, immediately. Called when travel ends,
+  // so nothing can still be playing out after the GUI says it has stopped.
+  virtual void abort() {}
 
   // Shown in the status bar, so it is never a mystery whether what is on
   // screen is driving a real rail.
@@ -46,7 +62,7 @@ public:
 // Motion with nothing behind it: every step always succeeds.
 class SimDriver : public StepDriver {
 public:
-  int step(int steps) override { return steps; }
+  StepOutcome step(int steps) override { return {steps, StepResult::Done}; }
 
   const char *name() const override { return "simulation"; }
 };

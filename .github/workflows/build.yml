@@ -138,6 +138,13 @@ jobs:
   # The container is the important part. A binary linked against the runner's
   # own Ubuntu glibc will not load on Pi OS, which is a Debian release or two
   # behind. Building inside the matching Debian gets the ABI right.
+  #
+  # These are SIMULATION builds. Debian does not package pigpio's server side
+  # at all -- pigpio.h, libpigpio-dev and pigpiod come from the Raspberry Pi
+  # archive, and Debian's libpigpiod-if-dev is unusable on its own because the
+  # pigpiod_if2.h it ships includes the pigpio.h it does not. A hardware build
+  # therefore has to happen on Pi OS, or in a container with the Pi archive
+  # added. See the Simulation and hardware section of README.md.
   pi-binary:
     name: pi binary (${{ matrix.debian }})
     runs-on: ubuntu-24.04-arm
@@ -167,7 +174,6 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             ca-certificates git cmake make g++ dpkg-dev \
-            libpigpio-dev libpigpiod-if-dev \
             ${{ matrix.qt }} file
 
       - uses: actions/checkout@v7
@@ -182,7 +188,7 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCBEAM_QT_VERSION=${{ matrix.qtver }} \
-            -DCBEAM_BACKEND=gpio
+            -DCBEAM_BACKEND=sim
 
       - name: Build
         run: cmake --build build --parallel

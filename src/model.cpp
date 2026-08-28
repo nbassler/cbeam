@@ -127,6 +127,10 @@ void Model::stop() {
 // press of Go does not silently resume a move that was just aborted.
 void Model::halt() {
   m_timer.stop();
+
+  // Drop anything still in flight, so nothing can play out after the GUI has
+  // said the carriage is stopped.
+  m_driver->abort();
   setTargetSteps(m_stepCurrent);
   emit movingChanged(false);
 }
@@ -178,15 +182,23 @@ void Model::tick() {
   if (stride == 0)
     return; // still filling the accumulator; nothing to do this tick
 
-  const int taken = m_driver->step(direction * stride);
+  const StepOutcome outcome = m_driver->step(direction * stride);
 
-  m_stepCurrent += taken;
+  if (outcome.result == StepResult::Busy) {
+    // Hardware has not finished the last burst. Hand the steps back to the
+    // accumulator so the rate is not quietly lost, and offer them again next
+    // tick. Travel simply paces itself to whatever the hardware can take.
+    m_fraction += stride;
+    return;
+  }
+
+  m_stepCurrent += outcome.taken;
   emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
 
-  if (taken != direction * stride) {
-    // The driver would not go the whole way. Abandon the rest of the move
-    // rather than keep asking; grinding a carriage into an engaged end
-    // stop is exactly what the switches are there to prevent.
+  if (outcome.result == StepResult::Blocked) {
+    // The driver will not go further this way. Abandon the rest of the move
+    // rather than keep asking; grinding a carriage into an engaged end stop
+    // is exactly what the switches are there to prevent.
     halt();
     emit travelInterrupted();
     return;

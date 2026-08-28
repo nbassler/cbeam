@@ -133,11 +133,17 @@ if(CBEAM_BACKEND STREQUAL "gpio")
     if(NOT PIGPIO_IF2_INCLUDE_DIR OR NOT PIGPIO_IF2_LIBRARY
        OR NOT PIGPIO_INCLUDE_DIR)
         message(FATAL_ERROR
-            "CBEAM_BACKEND=gpio needs pigpio. Both dev packages are "
-            "required -- pigpiod_if2.h includes pigpio.h:\n"
-            "  sudo apt install libpigpio-dev libpigpiod-if-dev\n"
-            "pigpio exists only on Raspberry Pi, and does not support the "
-            "Pi 5. Build with -DCBEAM_BACKEND=sim elsewhere.")
+            "CBEAM_BACKEND=gpio needs pigpio, on Raspberry Pi OS:\n"
+            "  sudo apt install pigpio libpigpio-dev libpigpiod-if-dev\n"
+            "\n"
+            "Plain Debian will not do. It packages only pigpio's client side, "
+            "and even that is broken on its own: libpigpiod-if-dev ships "
+            "pigpiod_if2.h, which includes the pigpio.h it does not ship. "
+            "pigpio.h, libpigpio-dev and pigpiod all come from the Raspberry "
+            "Pi archive.\n"
+            "\n"
+            "pigpio also does not support the Pi 5. Build with "
+            "-DCBEAM_BACKEND=sim anywhere that is not a Pi 4 or earlier.")
     endif()
 
     target_sources(cbeam PRIVATE src/pigpiodriver.h src/pigpiodriver.cpp)

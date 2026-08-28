@@ -49,7 +49,7 @@ machine out of memory.
 
 | Option | Default | |
 | --- | --- | --- |
-| `CBEAM_BACKEND` | `sim` | `sim` simulates motion and builds anywhere. `gpio` additionally compiles in the pigpio driver, so the GUI's **Simulation** tickbox can be cleared and the rail actually moves. Needs `libpigpio-dev` and `libpigpiod-if-dev` (the second header includes the first), and pigpio supports Pi 4 and earlier only. This decides what is *available*, not what is *used* — see below. |
+| `CBEAM_BACKEND` | `sim` | `sim` simulates motion and builds anywhere. `gpio` additionally compiles in the pigpio driver, so the GUI's **Simulation** tickbox can be cleared and the rail actually moves. Needs pigpio from Raspberry Pi OS — not available in plain Debian — and pigpio supports Pi 4 and earlier only. This decides what is *available*, not what is *used* — see below. |
 | `CBEAM_BUILD_TESTS` | `ON` | Set `OFF` to skip the test target. |
 | `CBEAM_QT_VERSION` | `auto` | `auto` prefers Qt 6 and falls back to Qt 5. Force with `5` or `6`. The configure output names the version actually used — worth a glance on a machine that has both. |
 
@@ -155,11 +155,24 @@ tickbox also locks while the carriage is travelling.
 The status bar names the driver in use, so what is on screen always says
 whether pulses are going anywhere.
 
-Hardware needs the pigpio daemon running:
+### Building for hardware
+
+A hardware build has to happen **on the Pi**, and needs pigpio from Pi OS:
 
 ```sh
+sudo apt install pigpio libpigpio-dev libpigpiod-if-dev
 sudo systemctl enable --now pigpiod
+cmake -S . -B build -DCBEAM_BACKEND=gpio
+cmake --build build -j2
 ```
+
+The released `.deb`s are **simulation builds**, because plain Debian cannot
+produce a hardware one. Debian packages only pigpio's client side, and that
+alone does not compile: `libpigpiod-if-dev` ships `pigpiod_if2.h`, which
+includes the `pigpio.h` it does not ship. `pigpio.h`, `libpigpio-dev` and
+`pigpiod` all come from the Raspberry Pi archive, which the build containers do
+not have. So the packages give you the GUI and simulation; driving the rail
+means compiling on the Pi. It takes a couple of minutes even on a 1 GB Pi 4.
 
 The app talks to it as an ordinary user — only the daemon needs root, which
 matters because running a Qt GUI as root over `ssh -X` is its own misery. Set

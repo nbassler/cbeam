@@ -120,6 +120,12 @@ constexpr int CB_PIN_ENDSTOP_HI = CB_PIN_NC;
 // External trigger, to start a move from outside the GUI.
 constexpr int CB_PIN_TRIGGER = CB_PIN_NC;
 
+// Direction line polarity. false matches src_rpi/test3.py: the line is driven
+// low to travel positive and high to travel negative. Flip this if a positive
+// jog moves the carriage the wrong way -- which way round it ends up is a
+// matter of how the motor is wired, not something that can be known here.
+constexpr bool CB_DIR_INVERT = false;
+
 // Input polarity: true means the line reads high when the switch is engaged
 // or the trigger is asserted.  Unverified against the hardware -- normally
 // closed end stops would want false here, which is also the safer wiring

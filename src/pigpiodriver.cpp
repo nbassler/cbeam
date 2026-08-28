@@ -8,12 +8,6 @@
 #include <stdexcept>
 #include <vector>
 
-namespace {
-// Enough headroom for a few ticks in flight without letting the daemon's
-// waveform storage fill up if something stalls.
-constexpr std::size_t kMaxQueuedWaves = 8;
-} // namespace
-
 PigpioDriver::PigpioDriver() {
   // Honour the usual pigpio environment variables so a daemon on another host
   // or port can be used without recompiling.
@@ -49,9 +43,8 @@ PigpioDriver::~PigpioDriver() {
   if (m_pi < 0)
     return;
 
-  wave_tx_stop(m_pi);
+  abort();
   wave_clear(m_pi);
-  gpio_write(m_pi, CB_PIN_PULSE, 0);
   pigpio_stop(m_pi);
 }
 
@@ -73,32 +66,55 @@ bool PigpioDriver::endstopEngaged(int direction) const {
   return (level != 0) == CB_ENDSTOP_ACTIVE_HIGH;
 }
 
-void PigpioDriver::releaseFinishedWaves() {
-  const int transmitting = wave_tx_at(m_pi);
-
-  while (!m_waves.empty() && m_waves.front() != transmitting) {
-    wave_delete(m_pi, m_waves.front());
-    m_waves.pop_front();
+// Only waves that have already played may be deleted. Their DMA control
+// blocks are live until then, and freeing a wave that is still queued lets the
+// daemon reuse the slot underneath a transmission that has not happened yet.
+void PigpioDriver::releaseWave() {
+  if (m_wave >= 0) {
+    wave_delete(m_pi, m_wave);
+    m_wave = -1;
   }
 }
 
-int PigpioDriver::step(int steps) {
+void PigpioDriver::abort() {
+  if (m_pi < 0)
+    return;
+
+  wave_tx_stop(m_pi);
+  releaseWave();
+  gpio_write(m_pi, CB_PIN_PULSE, 0);
+}
+
+StepOutcome PigpioDriver::step(int steps) {
   if (steps == 0)
-    return 0;
+    return {0, StepResult::Done};
+
+  // Nothing is ever queued behind what is playing. If the previous burst is
+  // still going, emit nothing and let Model offer the same steps again next
+  // tick.
+  //
+  // Queuing was the original design and it was wrong twice over. It let the
+  // daemon recycle waveform ids underneath transmissions that had not
+  // happened yet, which duplicated pulses and drove the carriage far past
+  // where it was asked to go. And it meant Stop did not stop: pulses banked
+  // in the daemon play out regardless of what the GUI thinks, even into a
+  // controller that has since been powered down.
+  if (wave_tx_busy(m_pi) != 0)
+    return {0, StepResult::Busy};
+
+  releaseWave(); // the previous burst has finished; its slot can go back
 
   const int direction = steps > 0 ? 1 : -1;
   const int count = std::abs(steps);
 
   if (endstopEngaged(direction))
-    return 0; // short count: Model halts and re-targets to where we are
+    return {0, StepResult::Blocked};
 
-  // test3.py's convention, kept: low drives positive, high drives negative.
-  gpio_write(m_pi, CB_PIN_DIR, direction < 0 ? 1 : 0);
+  // test3.py's convention by default: low drives positive, high negative.
+  // CB_DIR_INVERT swaps it without touching this file.
+  const bool negative = (direction < 0) != CB_DIR_INVERT;
 
-  releaseFinishedWaves();
-
-  if (m_waves.size() >= kMaxQueuedWaves)
-    return 0; // daemon is behind; let Model stop rather than pile up
+  gpio_write(m_pi, CB_PIN_DIR, negative ? 1 : 0);
 
   // Spread this tick's steps evenly across the tick. Model varies `steps` to
   // shape the ramp, so period follows from it and no rate is duplicated here.
@@ -120,25 +136,20 @@ int PigpioDriver::step(int steps) {
 
   if (wave_add_generic(m_pi, static_cast<int>(pulses.size()), pulses.data()) <
       0)
-    return 0;
+    return {0, StepResult::Blocked};
 
   const int wave = wave_create(m_pi);
 
   if (wave < 0)
-    return 0;
+    return {0, StepResult::Blocked};
 
-  // ONE_SHOT_SYNC appends to whatever is already playing instead of cutting it
-  // off, so consecutive ticks join without a seam in the pulse train.
-  if (wave_send_using_mode(m_pi, wave, PI_WAVE_MODE_ONE_SHOT_SYNC) < 0) {
+  // Plain one-shot, not a synchronised chain: by construction nothing else is
+  // playing, so there is nothing to chain onto.
+  if (wave_send_once(m_pi, wave) < 0) {
     wave_delete(m_pi, wave);
-    return 0;
+    return {0, StepResult::Blocked};
   }
 
-  m_waves.push_back(wave);
-
-  // Reported as done immediately: the pulses are queued in the daemon and will
-  // play out on their own. Model's position therefore leads the carriage by up
-  // to one tick, which is the price of not blocking the GUI thread for the
-  // duration of every burst.
-  return steps;
+  m_wave = wave;
+  return {steps, StepResult::Done};
 }

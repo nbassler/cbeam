@@ -32,12 +32,12 @@ class EndstopDriver : public StepDriver {
 public:
   explicit EndstopDriver(int limit) : m_limit(limit) {}
 
-  int step(int steps) override {
+  StepOutcome step(int steps) override {
     const int landed = std::min(m_at + steps, m_limit);
     const int taken = landed - m_at;
 
     m_at = landed;
-    return taken;
+    return {taken, taken == steps ? StepResult::Done : StepResult::Blocked};
   }
 
   const char *name() const override { return "end stop test"; }
@@ -45,6 +45,30 @@ public:
 private:
   int m_at = 0;
   int m_limit;
+};
+
+// Refuses every other request with Busy, as the real driver does while a
+// waveform is still playing. Busy must cost nothing: no steps lost, no steps
+// invented, and the move must still finish.
+class BusyDriver : public StepDriver {
+public:
+  StepOutcome step(int steps) override {
+    m_calls++;
+
+    if (m_calls % 2 == 0)
+      return {0, StepResult::Busy};
+
+    m_emitted += std::abs(steps);
+    return {steps, StepResult::Done};
+  }
+
+  const char *name() const override { return "busy test"; }
+
+  int emitted() const { return m_emitted; }
+
+private:
+  int m_calls = 0;
+  int m_emitted = 0;
 };
 } // namespace
 
@@ -65,6 +89,7 @@ private slots:
   void travelRampsUpAndDown();
   void shortMoveStillLandsExactly();
   void stopDeceleratesRatherThanJumping();
+  void busyDriverLosesNoSteps();
 };
 
 namespace {
@@ -334,6 +359,27 @@ void TestModel::stopDeceleratesRatherThanJumping() {
   // And it rests with the target on the carriage, so pressing Go again does
   // not resume the abandoned move.
   QCOMPARE(m.stepTarget(), m.stepCurrent());
+}
+
+// A driver that is intermittently busy paces travel without corrupting it.
+// Busy means "nothing happened, ask again", so those steps have to come back
+// round rather than being dropped -- or being counted as though they moved.
+void TestModel::busyDriverLosesNoSteps() {
+  const int target = 300;
+
+  auto driver = std::make_unique<BusyDriver>();
+  BusyDriver *watch = driver.get();
+
+  Model m(std::move(driver));
+
+  m.setTargetSteps(target);
+  m.go();
+  QTRY_VERIFY_WITH_TIMEOUT(!m.isMoving(), 30000);
+
+  // Landed exactly, and the hardware was asked for exactly as many steps as
+  // the carriage is now reported to have travelled.
+  QCOMPARE(m.stepCurrent(), target);
+  QCOMPARE(watch->emitted(), target);
 }
 
 QTEST_MAIN(TestModel)

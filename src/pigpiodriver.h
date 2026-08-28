@@ -1,7 +1,6 @@
 #ifndef PIGPIODRIVER_H
 #define PIGPIODRIVER_H
 
-#include <deque>
 #include <string>
 
 #include "stepdriver.h"
@@ -32,15 +31,20 @@ public:
   PigpioDriver(const PigpioDriver &) = delete;
   PigpioDriver &operator=(const PigpioDriver &) = delete;
 
-  int step(int steps) override;
+  StepOutcome step(int steps) override;
+  void abort() override;
   const char *name() const override;
 
 private:
-  void releaseFinishedWaves();
   bool endstopEngaged(int direction) const;
+  void releaseWave();
 
   int m_pi = -1;
-  std::deque<int> m_waves; // submitted, not yet known to have finished
+
+  // At most one waveform is ever in flight. Nothing is queued behind it, so
+  // Stop takes effect within one tick and a powered-down controller cannot be
+  // handed pulses that were banked minutes ago.
+  int m_wave = -1;
   std::string m_name;
 };
 
