@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_slider.h"
 #include "config.h"
+#include "version.h"
 
 #include <QCheckBox>
 #include <QLabel>
@@ -16,6 +17,12 @@ MainWindow::MainWindow(QWidget *parent) :
     m_model(new Model(this))
 {
     ui->setupUi(this);
+
+    // Appended rather than hardcoded in the .ui, so the title carries the
+    // exact tree a binary came from. Worth having on screen: this app will be
+    // run over ssh from machines that may be a release or two behind.
+    setWindowTitle(QString("%1 %2").arg(windowTitle(),
+                                        QString::fromLatin1(CB_VERSION)));
 
     // Every mm widget carries the same precision as the readouts, so a value
     // written back from the model survives the trip unchanged.

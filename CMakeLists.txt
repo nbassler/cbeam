@@ -27,6 +27,30 @@ elseif(NOT CBEAM_BACKEND STREQUAL "sim")
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Git QUIET)
+
+# The version shown in the window title comes from `git describe`, resolved on
+# every build rather than at configure time so it cannot go stale after a
+# commit. See cmake/GitVersion.cmake for the format.
+set(CBEAM_VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+set(CBEAM_VERSION_HEADER ${CBEAM_VERSION_DIR}/version.h)
+
+set(CBEAM_VERSION_COMMAND ${CMAKE_COMMAND}
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.h.in
+        -DOUT_FILE=${CBEAM_VERSION_HEADER}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GitVersion.cmake)
+
+# Once now, so the header exists before anything tries to compile against it.
+execute_process(COMMAND ${CBEAM_VERSION_COMMAND})
+
+add_custom_target(cbeam_version
+    COMMAND ${CBEAM_VERSION_COMMAND}
+    BYPRODUCTS ${CBEAM_VERSION_HEADER}
+    COMMENT "Resolving version from git"
+    VERBATIM
+)
 
 # Position model and motion backend, split out of the executable so the tests
 # link against exactly the code the app runs.
@@ -50,6 +74,8 @@ target_link_libraries(cbeam PRIVATE
     Qt::Gui
     Qt::Widgets
 )
+add_dependencies(cbeam cbeam_version)
+target_include_directories(cbeam PRIVATE ${CBEAM_VERSION_DIR})
 
 foreach(target cbeam cbeam_core)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)

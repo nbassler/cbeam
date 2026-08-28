@@ -22,6 +22,30 @@ Needs Qt 6 (Core, Gui, Widgets, Test) and CMake ≥ 3.16. All of those are in
 The running backend is named in the status bar, so it is never a mystery
 whether the window in front of you is driving real hardware.
 
+## Version
+
+The window title carries the version, resolved from `git describe`:
+
+| Title shows | Means |
+| --- | --- |
+| `CBeam Controller v0.0.1` | exactly a tagged release, tree clean |
+| `CBeam Controller v0.0.1+ga46ac93` | built past the tag |
+| `CBeam Controller v0.0.1+ga46ac93.dirty` | uncommitted changes in the tree |
+| `CBeam Controller 0.0.0+ga46ac93` | no tag reachable |
+| `CBeam Controller unknown` | not a git checkout, or git unavailable |
+
+`cmake/GitVersion.cmake` regenerates `version.h` on **every build**, not at
+configure time, so the title cannot go stale after a commit. Regenerating is
+free when nothing changed — `configure_file` leaves the file alone if the
+content is identical, so it does not force a relink.
+
+The header lands in the build tree and is never committed. To cut a release,
+tag it; the next build picks the name up on its own:
+
+```sh
+git tag -a v0.0.2 -m "..."
+```
+
 The app is meant to be built and run **on the Raspberry Pi**, reached over
 `ssh -X` when it is being used. There is no client/server split. Build deps on
 Pi OS:
