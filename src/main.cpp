@@ -3,15 +3,14 @@
 #include "mainwindow.h"
 #include "version.h"
 
-int main(int argc, char *argv[])
-{
-    QApplication app(argc, argv);
+int main(int argc, char *argv[]) {
+  QApplication app(argc, argv);
 
-    QCoreApplication::setApplicationName("cbeam");
-    QCoreApplication::setApplicationVersion(CB_VERSION);
+  QCoreApplication::setApplicationName("cbeam");
+  QCoreApplication::setApplicationVersion(CB_VERSION);
 
-    MainWindow w;
+  MainWindow w;
 
-    w.show();
-    return app.exec();
+  w.show();
+  return app.exec();
 }

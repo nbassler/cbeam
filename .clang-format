@@ -1,0 +1,9 @@
+---
+# Stock LLVM style, which is clang-format's own default: 2-space indent,
+# 80 columns, attached braces.
+#
+# Deliberately almost empty. Every line added here is a house rule someone has
+# to learn, and this project has no reason to have any -- the value of a
+# canonical style is that it is the same everywhere.
+BasedOnStyle: LLVM
+Standard: c++17

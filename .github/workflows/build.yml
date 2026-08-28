@@ -8,12 +8,52 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Style is stock LLVM, so there is nothing to argue about and nothing to
+  # learn -- but it only stays that way if something checks. The previous
+  # uncrustify config in this repo drifted 14% out of true precisely because
+  # nothing did.
+  #
+  # Pinned to a container rather than the runner image on purpose: clang-format
+  # output shifts slightly between major versions, and an unpinned check fails
+  # on its own schedule when the runner updates.
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Install clang-format
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git clang-format
+
+      - uses: actions/checkout@v4
+
+      - name: Check formatting
+        run: |
+          clang-format --version
+          clang-format --dry-run --Werror src/*.cpp src/*.h tests/*.cpp
+
   # Fast feedback on every push. This is the job that earns its keep -- the
   # ARM artifacts below are a convenience, this is the one that catches
   # breakage.
+  #
+  # Both compilers, because they disagree about what deserves a warning and
+  # each catches things the other waves through. The Pi builds with gcc; clang
+  # is here as a second opinion.
   test:
-    name: test (x86_64)
+    name: test (${{ matrix.compiler }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cxx: g++
+            package: g++
+          - compiler: clang
+            cxx: clang++
+            package: clang
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,15 +62,55 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake g++ qt6-base-dev
+          sudo apt-get install -y --no-install-recommends \
+            cmake ${{ matrix.package }} qt6-base-dev
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
 
       - name: Build
         run: cmake --build build --parallel
 
       - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4
+
+  # The unit tests again, this time with the address and undefined-behaviour
+  # sanitizers watching. Worth its own job: a use-after-free or a signed
+  # overflow can leave every assertion passing, so a green test run is not on
+  # its own evidence that the code is well behaved.
+  #
+  # This is not hypothetical here -- the dangling reference that was once in
+  # tests/test_model.cpp's own helper is exactly what ASan reports instantly.
+  sanitizers:
+    name: sanitizers (asan+ubsan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake clang qt6-base-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: ctest --test-dir build --output-on-failure --parallel 4
 
   # Native ARM64 builds, one per Raspberry Pi OS generation.

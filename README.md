@@ -2,8 +2,19 @@
 
 [![build](https://github.com/nbassler/cbeam/actions/workflows/build.yml/badge.svg)](https://github.com/nbassler/cbeam/actions/workflows/build.yml)
 [![release](https://img.shields.io/github/v/tag/nbassler/cbeam?label=release&sort=semver)](https://github.com/nbassler/cbeam/tags)
+[![license](https://img.shields.io/github/license/nbassler/cbeam)](LICENSE)
 
 Qt 6 controller for a linear actuator — a stepper motor on a rail.
+
+## Hardware
+
+An [OpenBuilds C-Beam linear actuator](https://openbuilds.com), driven from a
+Raspberry Pi over two GPIO lines: one pulse, one direction. Standard build is a
+Tr8×8-4p leadscrew (4 start, 2 mm pitch, 8 mm of travel per revolution) with a
+1.8° stepper at 200 full steps per revolution.
+
+The app is meant to be built and run **on the Pi**, reached over `ssh -X`. There
+is no client/server split.
 
 ## Build
 
@@ -159,11 +170,40 @@ Two things the workflow has to get right, both easy to trip over:
   back to a tarball download, leaving no `.git` at all and stamping the
   version `unknown`.
 
+## Style
+
+Stock LLVM style — clang-format's own default. `.clang-format` sets only
+`BasedOnStyle: LLVM` and the language standard, deliberately: every line added
+there would be a house rule someone has to learn, and the point of a canonical
+style is that it is the same everywhere.
+
+```sh
+cmake --build build --target format      # reformat in place
+clang-format --dry-run --Werror src/*.cpp src/*.h tests/*.cpp   # just check
+```
+
+CI checks it on every push, from a `debian:trixie` container rather than the
+runner image. clang-format's output shifts a little between major versions, so
+an unpinned check would start failing on its own schedule when the runner
+updates. Trixie ships clang-format 19, which is what a Debian 13 desktop has
+too — local and CI agree by construction.
+
+This replaced a 250-setting `uncrustify.cfg` that nothing ran: the tree had
+drifted 14% of its lines away from it. A style config only stays true if
+something checks it.
+
 ## Calibration
 
-Measured: **248 steps/cm** (24.8 steps/mm, 0.040323 mm/step), in
+Currently **248 steps/cm** (24.8 steps/mm, 0.040323 mm/step), in
 [src/config.h](src/config.h) as `CB_STEPS_PER_CM`. Full 400 mm travel is
-therefore 9920 steps, which agrees with `src_rpi/test2.py`.
+therefore 9920 steps, matching `src_rpi/test2.py`.
+
+> **This does not agree with the hardware, and is unresolved.** A C-Beam's
+> 8 mm lead with a 200 step/rev motor gives 200 ÷ 8 = 25 steps/mm = **250**
+> steps/cm exactly — which is what this file held originally. The 248 is the
+> same 0.8% off as `test2.py`'s 9920 versus a round 10000, and it is worth
+> 3.2 mm over full travel. To settle it: drive 9920 steps from a hard stop and
+> measure. 400.0 mm means 248 is right; 396.8 mm means it is really 250.
 
 The mm readouts use 3 decimals. That is deliberate and load-bearing: step
 spacing is 0.0403 mm, so 0.001 mm display resolution distinguishes every one of
@@ -212,3 +252,7 @@ non-integer accumulates error move over move — pass integer step deltas only.
 The scripts depend on `Adafruit_GPIO` / `Adafruit_SSD1306`, which are Python 2
 era and will not install on current Pi OS. `luma.oled` or
 `adafruit-circuitpython-ssd1306` are the live replacements.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -5,6 +5,18 @@ project(cbeam LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# A bare `cmake -S . -B build` otherwise leaves the build type empty, which
+# means neither optimisation nor debug symbols -- the worst of both. IDEs and
+# multi-config generators choose for themselves and are left alone.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+                 Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
+# Lets clangd, and VS Code's IntelliSense, resolve includes without guessing.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
@@ -86,4 +98,21 @@ message(STATUS "cbeam motion backend: ${CBEAM_BACKEND}")
 if(CBEAM_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+# Convenience: `cmake --build build --target format` reformats everything in
+# place. Style is stock LLVM, defined in .clang-format. CI checks it.
+find_program(CBEAM_CLANG_FORMAT NAMES clang-format)
+
+if(CBEAM_CLANG_FORMAT)
+    file(GLOB_RECURSE CBEAM_FORMAT_SOURCES
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+         ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
+
+    add_custom_target(format
+        COMMAND ${CBEAM_CLANG_FORMAT} -i ${CBEAM_FORMAT_SOURCES}
+        COMMENT "Reformatting sources with clang-format"
+        VERBATIM
+    )
 endif()
