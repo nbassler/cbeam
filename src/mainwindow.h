@@ -51,6 +51,7 @@ private:
 
   void setUpSimulationToggle();
   void setSimulation(bool simulated);
+  void setFlipDir(bool flipped);
   void setUpJogColumns();
   void relabelJogColumn(const JogColumn &col);
 

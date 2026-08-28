@@ -41,6 +41,7 @@ public:
   bool isMoving() const { return m_timer.isActive(); }
   bool positionKnown() const { return m_positionKnown; }
   bool estopped() const { return m_estopped; }
+  bool dirFlipped() const { return m_dirFlipped; }
 
   static double mmFromSteps(int steps);
   static int stepsFromMm(double mm); // nearest reachable step
@@ -55,6 +56,7 @@ public slots:
   void stop(); // abort travel and hold here
   void estop();
   void zero(); // call the present position zero
+  bool setDirFlipped(bool flipped); // flip positive direction; refused while moving
 
   void setTargetSteps(int steps);
   void setTargetMm(double mm);
@@ -99,6 +101,7 @@ private:
   QTimer m_timer;
   bool m_positionKnown = true;
   bool m_estopped = false;
+  bool m_dirFlipped = false;
 };
 
 #endif // MODEL_H

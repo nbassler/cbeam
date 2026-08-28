@@ -45,13 +45,15 @@ void Model::syncAsyncDriver() {
   const bool wasKnown = m_positionKnown;
   const bool wasEstopped = m_estopped;
 
-  if (m_stepCurrent != status.current) {
-    m_stepCurrent = status.current;
+  const int displayCurrent = m_dirFlipped ? -status.current : status.current;
+  if (m_stepCurrent != displayCurrent) {
+    m_stepCurrent = displayCurrent;
     emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
   }
 
-  if (m_stepTarget != status.target) {
-    m_stepTarget = status.target;
+  const int displayTarget = m_dirFlipped ? -status.target : status.target;
+  if (m_stepTarget != displayTarget) {
+    m_stepTarget = displayTarget;
     emit targetChanged(m_stepTarget, mmFromSteps(m_stepTarget));
   }
 
@@ -135,9 +137,6 @@ void Model::publishLimits() {
 
 void Model::zero() {
   if (usesAsyncDriver()) {
-    const int offset = m_stepCurrent;
-    const bool wasKnown = m_positionKnown;
-
     if (!m_driver->zeroHere()) {
       const std::string text = m_driver->lastError();
 
@@ -146,28 +145,17 @@ void Model::zero() {
       return;
     }
 
-    if (wasKnown) {
-      m_stepTarget -= offset;
-      m_stepLlim -= offset;
-      m_stepUlim -= offset;
-      emit limitsChanged(m_stepLlim, m_stepUlim, mmFromSteps(m_stepLlim),
-                         mmFromSteps(m_stepUlim));
-    }
-
     syncAsyncDriver();
     return;
   }
 
-  // Declare wherever we are now to be zero, and slide the whole travel window
-  // down with us so the same physical span stays reachable.  Shifting by the
-  // current position is the point of the button; shifting by the lower limit
-  // (as this used to) only did the right thing while parked at that limit.
+  // Declare the present position to be zero. Limits are left where the user
+  // set them -- they define the physical travel range and are not expected to
+  // shift with each reference-point change.
   const int offset = m_stepCurrent;
 
-  m_stepCurrent -= offset; // 0, by construction
+  m_stepCurrent = 0;
   m_stepTarget -= offset;
-  m_stepLlim -= offset;
-  m_stepUlim -= offset;
 
   publishAll();
 }
@@ -202,7 +190,8 @@ void Model::go() {
       return;
     }
 
-    if (!m_driver->moveTo(m_stepTarget)) {
+    const int physicalTarget = m_dirFlipped ? -m_stepTarget : m_stepTarget;
+    if (!m_driver->moveTo(physicalTarget)) {
       const std::string text = m_driver->lastError();
 
       if (!text.empty())
@@ -348,7 +337,8 @@ void Model::tick() {
   if (stride == 0)
     return; // still filling the accumulator; nothing to do this tick
 
-  const StepOutcome outcome = m_driver->step(direction * stride);
+  const int physicalStride = m_dirFlipped ? -(direction * stride) : direction * stride;
+  const StepOutcome outcome = m_driver->step(physicalStride);
 
   if (outcome.result == StepResult::Busy) {
     // Hardware has not finished the last burst. Hand the steps back to the
@@ -374,6 +364,24 @@ void Model::tick() {
     m_timer.stop();
     emit movingChanged(false);
   }
+}
+
+bool Model::setDirFlipped(bool flipped) {
+  if (m_dirFlipped == flipped)
+    return true;
+
+  if (isMoving())
+    return false;
+
+  m_dirFlipped = flipped;
+  m_stepCurrent = -m_stepCurrent;
+  m_stepTarget = -m_stepTarget;
+  const int newLlim = -m_stepUlim;
+  const int newUlim = -m_stepLlim;
+  m_stepLlim = newLlim;
+  m_stepUlim = newUlim;
+  publishAll();
+  return true;
 }
 
 void Model::publishAll() {

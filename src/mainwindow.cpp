@@ -60,6 +60,9 @@ MainWindow::MainWindow(QWidget *parent)
 
   setUpSimulationToggle();
 
+  connect(ui->checkBox_flipDir, &QCheckBox::toggled, this,
+          &MainWindow::setFlipDir);
+
   ui->checkBox_lockLimits->setChecked(CB_LOCK_LIMITS_AT_STARTUP);
   connect(ui->checkBox_lockLimits, &QCheckBox::toggled, this,
           &MainWindow::updateControlStates);
@@ -252,6 +255,14 @@ void MainWindow::setSimulation(bool simulated) {
 #endif
 }
 
+void MainWindow::setFlipDir(bool flipped) {
+  if (!m_model->setDirFlipped(flipped)) {
+    const QSignalBlocker block(ui->checkBox_flipDir);
+    ui->checkBox_flipDir->setChecked(!flipped);
+    statusBar()->showMessage(tr("Stop the carriage before flipping direction"));
+  }
+}
+
 void MainWindow::updateControlStates() {
   const bool locked = ui->checkBox_lockLimits->isChecked();
   const bool hardware = hardwareActive();
@@ -278,6 +289,7 @@ void MainWindow::updateControlStates() {
 
   // Changing what emits pulses mid-travel is never intended.
   ui->checkBox_simulation->setEnabled(!m_moving && m_gpioAvailable);
+  ui->checkBox_flipDir->setEnabled(!m_moving);
 
   // The limits and Zero are gated behind the lock as well. Zero belongs in
   // this group because it moves the travel window just as surely as editing

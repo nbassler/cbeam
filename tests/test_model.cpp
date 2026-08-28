@@ -210,14 +210,13 @@ void TestModel::targetsClampToTravel() {
   QCOMPARE(m.stepTarget(), m.stepLlim());
 }
 
-// Zero declares the present position to be zero and slides the travel window
-// down with it. Shifting by the lower limit, as the original did, only
-// happened to work while parked at that limit.
+// Zero declares the present position to be zero. Limits are unchanged: they
+// represent the physical travel range and are set manually by the user.
 void TestModel::zeroShiftsWindowByPosition() {
   Model m;
   const int span = m.stepUlim() - m.stepLlim();
 
-  // Kept short deliberately: travel runs in real time at CB_STEPS_PER_TICK
+    // Kept short deliberately: travel runs in real time at CB_STEPS_PER_TICK
   // per CB_TICK_MS, and what is under test here is the arithmetic of zero(),
   // which does not care how far the carriage came.
   m.setTargetMm(2.0);
@@ -227,10 +226,17 @@ void TestModel::zeroShiftsWindowByPosition() {
   const int arrived = m.stepCurrent();
   QCOMPARE(arrived, Model::stepsFromMm(2.0));
 
+  const int llimBefore = m.stepLlim();
+  const int ulimBefore = m.stepUlim();
+
   m.zero();
+
+  // Position resets; limits are not touched (they represent the physical
+  // travel range and are set manually by the user).
   QCOMPARE(m.stepCurrent(), 0);
+  QCOMPARE(m.stepLlim(), llimBefore);
+  QCOMPARE(m.stepUlim(), ulimBefore);
   QCOMPARE(m.stepUlim() - m.stepLlim(), span);
-  QCOMPARE(m.stepLlim(), -arrived);
 }
 
 // The original clobbered the 400 mm ceiling with 500 mm before the window was

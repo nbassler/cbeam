@@ -358,6 +358,16 @@
          </property>
         </widget>
        </item>
+       <item row="3" column="0" colspan="3">
+        <widget class="QCheckBox" name="checkBox_flipDir">
+         <property name="toolTip">
+          <string>Flip positive direction: positive values point towards the motor. Zero and re-set limits after changing.</string>
+         </property>
+         <property name="text">
+          <string>Positive towards motor</string>
+         </property>
+        </widget>
+       </item>
        <item row="1" column="1">
         <widget class="QPushButton" name="pushButton_zero">
          <property name="toolTip">
