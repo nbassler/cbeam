@@ -1,5 +1,8 @@
 # cbeam
 
+[![build](https://github.com/nbassler/cbeam/actions/workflows/build.yml/badge.svg)](https://github.com/nbassler/cbeam/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/tag/nbassler/cbeam?label=release&sort=semver)](https://github.com/nbassler/cbeam/tags)
+
 Qt 6 controller for a linear actuator — a stepper motor on a rail.
 
 ## Build
@@ -122,7 +125,39 @@ ceiling, `zero()` shifting by the wrong variable, jogs not accumulating, and
 truncated rather than rounded limits.
 
 Travel runs in real time, so tests that move the carriage keep the distance
-short on purpose.
+short on purpose. Run them in parallel — it cuts the wall time by about two
+thirds, since the motion cases spend most of it waiting:
+
+```sh
+ctest --test-dir build -j8            # all of them
+ctest --test-dir build -R Ramps       # one, by name (case sensitive)
+ctest --test-dir build -N             # list without running
+```
+
+Each QTest slot is registered as its own ctest case, so a failure names itself
+instead of pointing at the whole binary. `tests/CMakeLists.txt` discovers the
+list by reading the source, and a change to `test_model.cpp` triggers a
+reconfigure — a new test function registers itself with no CMake edit, and one
+cannot silently go unregistered.
+
+## CI
+
+`.github/workflows/build.yml` builds and tests on x86, and produces ARM64
+binaries for Pi OS as downloadable artifacts.
+
+The ARM jobs are **not** cross-compiled. They run on GitHub's arm64 runners,
+free for public repositories, inside a Debian container matching the Pi OS
+generation — `bookworm` and `trixie` are both built, so there is a binary ready
+whichever the Pi turns out to be. The container matters: a binary linked
+against the runner's own newer glibc will not load on Pi OS.
+
+Two things the workflow has to get right, both easy to trip over:
+
+- `fetch-depth: 0`, or there are no tags and every binary claims to be
+  `0.0.0+g…`.
+- git is installed **before** `actions/checkout`. Without it, checkout falls
+  back to a tarball download, leaving no `.git` at all and stamping the
+  version `unknown`.
 
 ## Calibration
 

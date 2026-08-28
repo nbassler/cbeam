@@ -73,6 +73,7 @@ private slots:
     void endstopHaltsTravel();
     void travelRampsUpAndDown();
     void shortMoveStillLandsExactly();
+    void stopDeceleratesRatherThanJumping();
 };
 
 namespace {
@@ -320,6 +321,46 @@ void TestModel::shortMoveStillLandsExactly()
 
         QCOMPARE(total, target); // no step invented, none dropped
     }
+}
+
+// Stop eases the carriage down rather than dropping it from cruise to nothing
+// in one tick, which is the same jolt the ramp exists to avoid. It is not an
+// emergency stop; for that, cut the motor supply.
+void TestModel::stopDeceleratesRatherThanJumping()
+{
+    Model      m;
+    QList<int> strides;
+    int        last = 0;
+
+    startProfiledMove(m, 2000, strides, last);
+
+    // Let it get up to cruise first -- past CB_RAMP_MS worth of ticks.
+    const int rampTicks = CB_RAMP_MS / CB_TICK_MS;
+
+    QTRY_VERIFY_WITH_TIMEOUT(strides.size() > rampTicks + 10, 10000);
+
+    const int rateAtCruise = strides.last();
+    const int whereStopped = m.stepCurrent();
+
+    m.stop();
+
+    // Still travelling: it has to shed speed before it can rest.
+    QVERIFY2(m.isMoving(), "stop() halted instantly instead of decelerating");
+
+    QTRY_VERIFY_WITH_TIMEOUT(!m.isMoving(), 10000);
+
+    // It ran on a little, and was slower by the end than it was at cruise.
+    QVERIFY2(m.stepCurrent() > whereStopped,
+             "carriage did not coast at all after stop()");
+    QVERIFY2(strides.last() < rateAtCruise,
+             "carriage was still at full speed on its last tick");
+
+    // Well short of where it had been asked to go.
+    QVERIFY(m.stepCurrent() < 2000);
+
+    // And it rests with the target on the carriage, so pressing Go again does
+    // not resume the abandoned move.
+    QCOMPARE(m.stepTarget(), m.stepCurrent());
 }
 
 QTEST_MAIN(TestModel)

@@ -1,0 +1,15 @@
+version: 2
+
+# Only GitHub Actions is covered here. Dependabot has no ecosystem for CMake or
+# C++ system packages, so the Qt and toolchain versions this project builds
+# against are pinned by the Debian release in the workflow's container, not by
+# anything Dependabot can see. Bumping those means changing the matrix.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies

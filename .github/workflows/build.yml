@@ -1,0 +1,95 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Fast feedback on every push. This is the job that earns its keep -- the
+  # ARM artifacts below are a convenience, this is the one that catches
+  # breakage.
+  test:
+    name: test (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, or git describe cannot name the version
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++ qt6-base-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4
+
+  # Native ARM64 builds, one per Raspberry Pi OS generation.
+  #
+  # Not cross-compilation: these run on GitHub's arm64 runners, which are free
+  # for public repositories. Cross-compiling Qt6 would mean a matching host Qt
+  # for the moc/uic tools plus a sysroot copied off the Pi, and it breaks every
+  # time the Pi updates.
+  #
+  # The container is the important part. A binary linked against the runner's
+  # own Ubuntu glibc will not load on Pi OS, which is a Debian release or two
+  # behind. Building inside the matching Debian gets the ABI right.
+  pi-binary:
+    name: pi binary (${{ matrix.debian }})
+    runs-on: ubuntu-24.04-arm
+    container: debian:${{ matrix.debian }}
+    strategy:
+      fail-fast: false
+      matrix:
+        debian: [bookworm, trixie] # Pi OS 12 and 13
+
+    steps:
+      # Before checkout, deliberately: without git in the container,
+      # actions/checkout falls back to a tarball download, leaving no .git for
+      # `git describe` and stamping every binary "unknown".
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git cmake g++ qt6-base-dev
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark the checkout safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4
+
+      - name: Report what was built
+        run: |
+          echo "### cbeam for Pi OS (${{ matrix.debian }})" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo '```'
+            grep 'define CB_VERSION ' build/generated/version.h
+            file build/cbeam
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbeam-arm64-${{ matrix.debian }}
+          path: build/cbeam
+          if-no-files-found: error
