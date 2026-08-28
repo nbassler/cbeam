@@ -28,11 +28,26 @@ constexpr double CB_MM_PER_STEP  = 10.0 / CB_STEPS_PER_CM;
 // re-quantised by the widget it lands in.
 constexpr int CB_MM_DIGITS = 3;
 
-// Simulated motion rate.  src_rpi/test3.py pulses with a 2 ms delay per step,
-// so 500 steps/s.  Advancing CB_STEPS_PER_TICK steps every CB_TICK_MS gives
-// the same rate while refreshing the GUI at a comfortable 50 Hz.
+// Motion profile, in steps per second.
+//
+// Travel eases in and out rather than switching between stopped and full
+// speed. Two reasons: a stepper asked to start at cruise rate can stall or
+// lose steps against the inertia of the carriage, and a rail that slams to a
+// halt at a limit is alarming to stand next to. Seeing it slow down over the
+// last half second before its target reads as deliberate rather than runaway.
+constexpr double CB_RATE_CRUISE = 500.0; // matches the 2 ms pulse in test3.py
+constexpr double CB_RATE_START  = 50.0;  // rate at both ends of a move
+constexpr int    CB_RAMP_MS     = 500;   // time from start rate up to cruise
+
+// Acceleration follows from the rates and the ramp time, in steps/s^2.
+constexpr double CB_ACCEL = (CB_RATE_CRUISE - CB_RATE_START)
+                            / (CB_RAMP_MS / 1000.0);
+
+// How often the simulated carriage is advanced and the display refreshed.
+//
+// This paces the *view*, not the motor. A Qt timer is nowhere near accurate
+// enough to time step pulses -- see the note in stepdriver.h.
 constexpr int CB_TICK_MS = 20;
-constexpr int CB_STEPS_PER_TICK = 10;
 
 // Starting increments for the three jog button columns, in steps. Each column
 // is retunable at runtime, which is the point: set one to the increment a

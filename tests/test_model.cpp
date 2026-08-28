@@ -71,7 +71,33 @@ private slots:
     void zeroShiftsWindowByPosition();
     void startupLimitsComeFromConfig();
     void endstopHaltsTravel();
+    void travelRampsUpAndDown();
+    void shortMoveStillLandsExactly();
 };
+
+namespace {
+    // Start a move, recording the number of steps taken on each tick -- the
+    // speed profile, sampled.
+    //
+    // `strides` and `last` belong to the caller on purpose. Travel continues
+    // after this returns, so anything the lambda touches has to outlive the
+    // call; owning them here and handing back a copy would leave the
+    // connection writing into a dead stack frame.
+    void startProfiledMove(Model &m, int targetSteps,
+                           QList<int> &strides, int &last)
+    {
+        last = m.stepCurrent();
+
+        QObject::connect(&m, &Model::positionChanged,
+                         [&strides, &last](int steps, double) {
+            strides << std::abs(steps - last);
+            last = steps;
+        });
+
+        m.setTargetSteps(targetSteps);
+        m.go();
+    }
+}
 
 // Type a value, press enter, type the value back: many times over, at
 // distances that do not divide evenly into steps.
@@ -237,6 +263,63 @@ void TestModel::endstopHaltsTravel()
     QCOMPARE(m.stepTarget(), stopAt);
     m.go();
     QVERIFY(!m.isMoving());
+}
+
+// Travel eases in and out instead of jumping straight to cruise speed. The
+// exactness guarantee has to survive the variable rate: a ramped move must
+// still land on precisely the step it was asked for.
+void TestModel::travelRampsUpAndDown()
+{
+    // Long enough to reach cruise and come back down, short enough that the
+    // test does not spend seconds of wall clock getting there.
+    const int target = 500;
+
+    Model      m;
+    QList<int> strides;
+    int        last = 0;
+
+    startProfiledMove(m, target, strides, last);
+    QTRY_VERIFY_WITH_TIMEOUT(!m.isMoving(), 30000);
+
+    QCOMPARE(m.stepCurrent(), target);
+    QVERIFY(strides.size() > 4);
+
+    const int peak = *std::max_element(strides.begin(), strides.end());
+
+    // Cruise is the ceiling: no tick may exceed the configured top rate.
+    const int ceiling = static_cast<int>(std::ceil(CB_RATE_CRUISE
+                                                   * CB_TICK_MS / 1000.0));
+    QVERIFY2(peak <= ceiling,
+             qPrintable(QString("peak %1 steps/tick exceeds cruise ceiling %2")
+                        .arg(peak).arg(ceiling)));
+
+    // Eased in, and eased out.
+    QVERIFY2(strides.first() < peak, "move did not start below cruise speed");
+    QVERIFY2(strides.last() < peak, "move did not slow down before its target");
+}
+
+// A move too short to ever reach cruise speed gets a triangular profile
+// rather than a truncated trapezoid, and must still be exact.
+void TestModel::shortMoveStillLandsExactly()
+{
+    for (int target : { 1, 2, 7, 40 })
+    {
+        Model      m;
+        QList<int> strides;
+        int        last = 0;
+
+        startProfiledMove(m, target, strides, last);
+        QTRY_VERIFY_WITH_TIMEOUT(!m.isMoving(), 30000);
+
+        QCOMPARE(m.stepCurrent(), target);
+
+        int total = 0;
+
+        for (int s : strides)
+            total += s;
+
+        QCOMPARE(total, target); // no step invented, none dropped
+    }
 }
 
 QTEST_MAIN(TestModel)

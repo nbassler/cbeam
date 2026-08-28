@@ -86,6 +86,23 @@ advances the carriage off a `QTimer` at the rate `src_rpi/test3.py` pulses
 (500 steps/s), rather than looping, so the GUI stays responsive and `Stop`
 can abort a move in progress.
 
+Travel follows a trapezoidal speed profile: it eases from `CB_RATE_START` up
+to `CB_RATE_CRUISE` over `CB_RAMP_MS`, cruises, then sheds speed again into the
+target. Moves too short to reach cruise get a triangular profile instead. The
+deceleration falls out of one term in `Model::tick()` — speed is capped at
+`sqrt(start² + 2·a·distance)`, the fastest you could still be going and stop in
+what is left.
+
+Two reasons it is there. A stepper asked to start at cruise can stall or lose
+steps against the carriage's inertia; and a rail that slams to a halt at a
+limit is alarming to stand next to, whereas one visibly slowing over its last
+half second reads as deliberate. `Stop` decelerates the same way rather than
+cutting instantly — for a real emergency, cut the motor supply.
+
+Sub-step remainders are carried between ticks rather than rounded away, so a
+ramped move still lands on exactly the step it was asked for. There are tests
+for that.
+
 `Model` never touches hardware itself. It drives a `StepDriver`
 ([src/stepdriver.h](src/stepdriver.h)), of which `SimDriver` is the only
 implementation today. A driver's `step()` returns *how many steps it actually

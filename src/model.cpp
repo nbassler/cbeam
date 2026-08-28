@@ -2,6 +2,8 @@
 #include "config.h"
 
 #include <QtGlobal>
+
+#include <algorithm>
 #include <cmath>
 
 Model::Model(QObject *parent) :
@@ -104,6 +106,11 @@ void Model::go()
 
     if (!m_timer.isActive())
     {
+        // Start of a fresh move: begin at the start rate with no carry left
+        // over from whatever the last move was doing.
+        m_rate     = CB_RATE_START;
+        m_fraction = 0.0;
+
         m_timer.start();
         emit movingChanged(true);
     }
@@ -113,7 +120,19 @@ void Model::stop()
 {
     if (!m_timer.isActive())
         return;
-    halt();
+
+    // A controlled stop, not an instant one: dropping from cruise to nothing
+    // in a single tick is exactly the jolt the ramp exists to avoid. Retarget
+    // to the end of the braking distance -- rearranging v^2 = v0^2 + 2*a*d --
+    // and let the profile in tick() decelerate into it, which takes at most
+    // CB_RAMP_MS. For a genuine emergency, cut the motor supply.
+    const int    direction = (m_stepTarget >= m_stepCurrent) ? 1 : -1;
+    const double braking   = (m_rate * m_rate
+                              - CB_RATE_START * CB_RATE_START)
+                             / (2.0 * CB_ACCEL);
+
+    setTargetSteps(m_stepCurrent
+                   + direction * static_cast<int>(std::ceil(braking)));
 }
 
 // Come to rest where we are. The target follows the carriage, so a second
@@ -139,14 +158,48 @@ void Model::jog(int deltaSteps)
 void Model::tick()
 {
     const int remaining = m_stepTarget - m_stepCurrent;
-    const int stride    = qBound(-CB_STEPS_PER_TICK, remaining,
-                                 CB_STEPS_PER_TICK);
-    const int taken     = m_driver->step(stride);
+
+    if (remaining == 0)
+    {
+        halt();
+        return;
+    }
+
+    const int    direction = remaining > 0 ? 1 : -1;
+    const double distance  = std::abs(remaining);
+    const double dt        = CB_TICK_MS / 1000.0;
+
+    // Trapezoidal profile. Speed climbs at CB_ACCEL, but is never allowed
+    // past what can still be shed before the target: from v^2 = v0^2 + 2*a*d,
+    // the fastest we may be travelling with `distance` left to run is
+    // sqrt(start^2 + 2*a*distance). That single term produces the whole
+    // deceleration ramp, and it also handles moves too short to ever reach
+    // cruise -- the profile just becomes a triangle.
+    const double accelerating = m_rate + CB_ACCEL * dt;
+    const double braking      = std::sqrt(CB_RATE_START * CB_RATE_START
+                                          + 2.0 * CB_ACCEL * distance);
+
+    m_rate = std::max(CB_RATE_START,
+                      std::min({ CB_RATE_CRUISE, accelerating, braking }));
+
+    // Carry the sub-step remainder between ticks rather than rounding it away,
+    // so the profile does not quietly lose or gain steps.
+    m_fraction += m_rate * dt;
+
+    int stride = static_cast<int>(m_fraction);
+
+    m_fraction -= stride;
+    stride      = std::min(stride, static_cast<int>(distance));
+
+    if (stride == 0)
+        return; // still filling the accumulator; nothing to do this tick
+
+    const int taken = m_driver->step(direction * stride);
 
     m_stepCurrent += taken;
     emit positionChanged(m_stepCurrent, mmFromSteps(m_stepCurrent));
 
-    if (taken != stride)
+    if (taken != direction * stride)
     {
         // The driver would not go the whole way. Abandon the rest of the move
         // rather than keep asking; grinding a carriage into an engaged end

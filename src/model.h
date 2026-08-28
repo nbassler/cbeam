@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "config.h"
 #include "stepdriver.h"
 
 // Position state for the linear actuator.
@@ -79,6 +80,11 @@ private:
     int  clampToLimits(int steps) const;
 
     std::unique_ptr<StepDriver> m_driver;
+
+    // Trapezoidal speed profile state, live only while travelling.
+    double m_rate     = CB_RATE_START; // current speed, steps/s
+    double m_fraction = 0.0;           // sub-step carry between ticks
+
     int m_stepCurrent;
     int m_stepTarget;
     int m_stepLlim;
