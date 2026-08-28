@@ -59,11 +59,14 @@ jobs:
         with:
           fetch-depth: 0 # tags, or git describe cannot name the version
 
+      # make is listed explicitly: Debian has it as a Recommends of cmake, not
+      # a Depends, so --no-install-recommends drops it. The runner image
+      # happens to ship one, but relying on that is how this breaks later.
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            cmake ${{ matrix.package }} qt6-base-dev
+            cmake make ${{ matrix.package }} qt6-base-dev
 
       - name: Configure
         run: |
@@ -95,7 +98,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake clang qt6-base-dev
+          sudo apt-get install -y --no-install-recommends cmake make clang qt6-base-dev
 
       - name: Configure
         run: |
@@ -140,7 +143,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            ca-certificates git cmake g++ qt6-base-dev
+            ca-certificates git cmake make g++ qt6-base-dev file
 
       - uses: actions/checkout@v7
         with:
