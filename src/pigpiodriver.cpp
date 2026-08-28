@@ -69,10 +69,31 @@ bool PigpioDriver::endstopEngaged(int direction) const {
 // Only waves that have already played may be deleted. Their DMA control
 // blocks are live until then, and freeing a wave that is still queued lets the
 // daemon reuse the slot underneath a transmission that has not happened yet.
-void PigpioDriver::releaseWave() {
-  if (m_wave >= 0) {
-    wave_delete(m_pi, m_wave);
-    m_wave = -1;
+// A waveform may only be deleted once it has definitely finished. Its DMA
+// control blocks are live until then, and freeing one early lets the daemon
+// hand the slot to a new waveform while the old one is still being read --
+// which duplicates pulses and sends the carriage far past its target.
+void PigpioDriver::retireFinished() {
+  if (m_playing < 0)
+    return;
+
+  if (wave_tx_busy(m_pi) == 0) {
+    // Nothing is transmitting, so everything submitted has played out.
+    if (m_queued >= 0)
+      wave_delete(m_pi, m_queued);
+
+    wave_delete(m_pi, m_playing);
+    m_queued = -1;
+    m_playing = -1;
+    return;
+  }
+
+  // Only once the chained waveform is the one transmitting is its predecessor
+  // provably done.
+  if (m_queued >= 0 && wave_tx_at(m_pi) == m_queued) {
+    wave_delete(m_pi, m_playing);
+    m_playing = m_queued;
+    m_queued = -1;
   }
 }
 
@@ -80,8 +101,16 @@ void PigpioDriver::abort() {
   if (m_pi < 0)
     return;
 
-  wave_tx_stop(m_pi);
-  releaseWave();
+  wave_tx_stop(m_pi); // discards anything chained, not just the current one
+
+  if (m_queued >= 0)
+    wave_delete(m_pi, m_queued);
+
+  if (m_playing >= 0)
+    wave_delete(m_pi, m_playing);
+
+  m_queued = -1;
+  m_playing = -1;
   gpio_write(m_pi, CB_PIN_PULSE, 0);
 }
 
@@ -89,20 +118,12 @@ StepOutcome PigpioDriver::step(int steps) {
   if (steps == 0)
     return {0, StepResult::Done};
 
-  // Nothing is ever queued behind what is playing. If the previous burst is
-  // still going, emit nothing and let Model offer the same steps again next
-  // tick.
-  //
-  // Queuing was the original design and it was wrong twice over. It let the
-  // daemon recycle waveform ids underneath transmissions that had not
-  // happened yet, which duplicated pulses and drove the carriage far past
-  // where it was asked to go. And it meant Stop did not stop: pulses banked
-  // in the daemon play out regardless of what the GUI thinks, even into a
-  // controller that has since been powered down.
-  if (wave_tx_busy(m_pi) != 0)
-    return {0, StepResult::Busy};
+  retireFinished();
 
-  releaseWave(); // the previous burst has finished; its slot can go back
+  // Both slots full: one playing, one already chained. Emit nothing and let
+  // Model offer the same steps again next tick.
+  if (m_queued >= 0)
+    return {0, StepResult::Busy};
 
   const int direction = steps > 0 ? 1 : -1;
   const int count = std::abs(steps);
@@ -119,9 +140,12 @@ StepOutcome PigpioDriver::step(int steps) {
   // Spread this tick's steps evenly across the tick. Model varies `steps` to
   // shape the ramp, so period follows from it and no rate is duplicated here.
   const unsigned totalUs = static_cast<unsigned>(CB_TICK_MS) * 1000u;
-  const unsigned periodUs = std::max(totalUs / static_cast<unsigned>(count),
-                                     static_cast<unsigned>(CB_PULSE_US) * 2u);
-  const unsigned highUs = CB_PULSE_US;
+  const unsigned periodUs =
+      std::max(totalUs / static_cast<unsigned>(count), CB_PULSE_MIN_US * 2u);
+
+  // Square wave: high for half the period. Matches what test3.py effectively
+  // does and gives an opto-isolated input time to actually switch.
+  const unsigned highUs = std::max(periodUs / 2u, CB_PULSE_MIN_US);
   const unsigned lowUs = periodUs - highUs;
 
   std::vector<gpioPulse_t> pulses;
@@ -143,13 +167,22 @@ StepOutcome PigpioDriver::step(int steps) {
   if (wave < 0)
     return {0, StepResult::Blocked};
 
-  // Plain one-shot, not a synchronised chain: by construction nothing else is
-  // playing, so there is nothing to chain onto.
-  if (wave_send_once(m_pi, wave) < 0) {
+  // Chain onto whatever is playing so the pulse train has no seam. With
+  // nothing playing there is nothing to chain onto, so send it directly.
+  const int sent =
+      m_playing < 0
+          ? wave_send_once(m_pi, wave)
+          : wave_send_using_mode(m_pi, wave, PI_WAVE_MODE_ONE_SHOT_SYNC);
+
+  if (sent < 0) {
     wave_delete(m_pi, wave);
     return {0, StepResult::Blocked};
   }
 
-  m_wave = wave;
+  if (m_playing < 0)
+    m_playing = wave;
+  else
+    m_queued = wave;
+
   return {steps, StepResult::Done};
 }

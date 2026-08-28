@@ -133,10 +133,16 @@ constexpr bool CB_DIR_INVERT = false;
 constexpr bool CB_ENDSTOP_ACTIVE_HIGH = true;
 constexpr bool CB_TRIGGER_ACTIVE_HIGH = true;
 
-// Width of the high part of a step pulse, in microseconds. Stepper drivers
-// generally want at least 2.5 us; 10 us is comfortably above that and still
-// leaves the line low for the rest of the period even at full speed.
-constexpr unsigned CB_PULSE_US = 10;
+// Minimum width of the high part of a step pulse, in microseconds.
+//
+// The pulse is normally half the step period -- a square wave, which is close
+// to what src_rpi/test3.py produces and what opto-isolated driver inputs like.
+// A brief spike is a bad idea even though the datasheet allows it: the
+// optocouplers on common drivers need appreciable time to switch, and a 10 us
+// pulse that measures fine on a scope can still be missed by the driver.
+//
+// This floor only matters at speeds too high for a half-period pulse.
+constexpr unsigned CB_PULSE_MIN_US = 20;
 
 // Debounce window for the switch and trigger inputs.
 constexpr int CB_INPUT_DEBOUNCE_MS = 20;

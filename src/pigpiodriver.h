@@ -37,14 +37,21 @@ public:
 
 private:
   bool endstopEngaged(int direction) const;
-  void releaseWave();
+  void retireFinished();
 
   int m_pi = -1;
 
-  // At most one waveform is ever in flight. Nothing is queued behind it, so
-  // Stop takes effect within one tick and a powered-down controller cannot be
-  // handed pulses that were banked minutes ago.
-  int m_wave = -1;
+  // Exactly two waveform slots: the one playing, and at most one chained
+  // behind it. The second exists because a waveform lasts one tick, so
+  // without something already queued the motor stands still in the gap
+  // between a burst ending and the next timer tick delivering the next --
+  // a 50 Hz stutter that is audible and loses steps at speed.
+  //
+  // This is bounded queuing, unlike the unbounded version it replaced: never
+  // more than one tick of pulses is banked, and abort() calls wave_tx_stop,
+  // which discards it immediately. Stop still stops.
+  int m_playing = -1;
+  int m_queued = -1;
   std::string m_name;
 };
 
