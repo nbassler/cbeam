@@ -48,6 +48,8 @@ private:
     QLabel *asMm;
   };
 
+  void setUpSimulationToggle();
+  void setSimulation(bool simulated);
   void setUpJogColumns();
   void relabelJogColumn(const JogColumn &col);
 
@@ -55,6 +57,12 @@ private:
   Model *m_model;
   std::array<JogColumn, CB_JOG_COLUMNS> m_jog;
   bool m_moving = false;
+
+#ifdef CBEAM_HAVE_GPIO
+  static constexpr bool m_gpioAvailable = true;
+#else
+  static constexpr bool m_gpioAvailable = false;
+#endif
 };
 
 #endif // MAINWINDOW_H

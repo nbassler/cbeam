@@ -3,8 +3,13 @@
 #include "ui_slider.h"
 #include "version.h"
 
+#ifdef CBEAM_HAVE_GPIO
+#include "pigpiodriver.h"
+#endif
+
 #include <QCheckBox>
 #include <QLabel>
+#include <QMessageBox>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStatusBar>
@@ -51,6 +56,8 @@ MainWindow::MainWindow(QWidget *parent)
           &Model::setUlimMm);
 
   setUpJogColumns();
+
+  setUpSimulationToggle();
 
   ui->checkBox_lockLimits->setChecked(CB_LOCK_LIMITS_AT_STARTUP);
   connect(ui->checkBox_lockLimits, &QCheckBox::toggled, this,
@@ -178,6 +185,58 @@ void MainWindow::showLimits(int loSteps, int hiSteps, double loMm,
   }
 }
 
+// The Simulation tickbox decides whether pulses reach the pins. It always
+// starts ticked: a freshly launched controller must not be able to move a rail
+// until someone says so.
+//
+// Whether it can be unticked at all is a build-time matter -- the pigpio
+// driver only exists in a CBEAM_BACKEND=gpio build -- so on a desktop build
+// the box is ticked and disabled rather than absent, which makes the reason
+// visible instead of leaving someone hunting for a missing control.
+void MainWindow::setUpSimulationToggle() {
+  ui->checkBox_simulation->setChecked(true);
+
+#ifdef CBEAM_HAVE_GPIO
+  connect(ui->checkBox_simulation, &QCheckBox::toggled, this,
+          &MainWindow::setSimulation);
+#else
+  ui->checkBox_simulation->setEnabled(false);
+  ui->checkBox_simulation->setToolTip(
+      tr("This build has no GPIO support. Rebuild with "
+         "-DCBEAM_BACKEND=gpio on a Raspberry Pi to drive the rail."));
+#endif
+}
+
+void MainWindow::setSimulation(bool simulated) {
+#ifdef CBEAM_HAVE_GPIO
+  std::unique_ptr<StepDriver> driver;
+
+  if (simulated) {
+    driver = std::make_unique<SimDriver>();
+  } else {
+    try {
+      driver = std::make_unique<PigpioDriver>();
+    } catch (const std::exception &error) {
+      QMessageBox::warning(this, tr("Cannot reach the hardware"),
+                           tr("Staying in simulation.\n\n%1")
+                               .arg(QString::fromLatin1(error.what())));
+      const QSignalBlocker block(ui->checkBox_simulation);
+      ui->checkBox_simulation->setChecked(true);
+      return;
+    }
+  }
+
+  if (!m_model->setDriver(std::move(driver))) {
+    // Only refused while travelling; put the box back where it was.
+    const QSignalBlocker block(ui->checkBox_simulation);
+    ui->checkBox_simulation->setChecked(!simulated);
+    statusBar()->showMessage(tr("Stop the carriage before switching mode"));
+  }
+#else
+  Q_UNUSED(simulated)
+#endif
+}
+
 void MainWindow::updateControlStates() {
   const bool locked = ui->checkBox_lockLimits->isChecked();
 
@@ -197,6 +256,9 @@ void MainWindow::updateControlStates() {
   ui->doubleSpinBox_goPos->setEnabled(!m_moving);
 
   ui->pushButton_stop->setEnabled(m_moving);
+
+  // Changing what emits pulses mid-travel is never intended.
+  ui->checkBox_simulation->setEnabled(!m_moving && m_gpioAvailable);
 
   // The limits and Zero are gated behind the lock as well. Zero belongs in
   // this group because it moves the travel window just as surely as editing

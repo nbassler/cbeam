@@ -335,6 +335,19 @@
          </property>
         </widget>
        </item>
+       <item row="2" column="0" colspan="3">
+        <widget class="QCheckBox" name="checkBox_simulation">
+         <property name="toolTip">
+          <string>When ticked, nothing is sent to the GPIO pins and the carriage is imaginary</string>
+         </property>
+         <property name="text">
+          <string>Simulation (no motor)</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
        <item row="1" column="1">
         <widget class="QPushButton" name="pushButton_zero">
          <property name="toolTip">
@@ -383,6 +396,7 @@
   <tabstop>doubleSpinBox_llim</tabstop>
   <tabstop>doubleSpinBox_ulim</tabstop>
   <tabstop>pushButton_zero</tabstop>
+  <tabstop>checkBox_simulation</tabstop>
  </tabstops>
  <resources/>
  <connections/>

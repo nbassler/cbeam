@@ -82,6 +82,15 @@ void Model::zero() {
   publishAll();
 }
 
+bool Model::setDriver(std::unique_ptr<StepDriver> driver) {
+  if (!driver || isMoving())
+    return false;
+
+  m_driver = std::move(driver);
+  emit driverChanged(QString::fromLatin1(m_driver->name()));
+  return true;
+}
+
 void Model::go() {
   if (m_stepCurrent == m_stepTarget)
     return;
@@ -195,4 +204,5 @@ void Model::publishAll() {
                      mmFromSteps(m_stepUlim));
   emit targetChanged(m_stepTarget, mmFromSteps(m_stepTarget));
   emit movingChanged(isMoving());
+  emit driverChanged(QString::fromLatin1(m_driver->name()));
 }

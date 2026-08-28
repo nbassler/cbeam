@@ -29,6 +29,11 @@ public:
 
   const char *driverName() const { return m_driver->name(); }
 
+  // Swap what actually moves the rail -- simulation for hardware, or back.
+  // Refused while travelling: changing the thing emitting pulses mid-move is
+  // never what anyone meant. Returns false if it was refused.
+  bool setDriver(std::unique_ptr<StepDriver> driver);
+
   int stepCurrent() const { return m_stepCurrent; }
   int stepTarget() const { return m_stepTarget; }
   int stepLlim() const { return m_stepLlim; }
@@ -60,6 +65,7 @@ signals:
   void targetChanged(int steps, double mm);
   void limitsChanged(int loSteps, int hiSteps, double loMm, double hiMm);
   void movingChanged(bool moving);
+  void driverChanged(const QString &name);
 
   // The driver stopped short of what was asked -- an end stop, in a hardware
   // build. Travel has already been halted by the time this fires.

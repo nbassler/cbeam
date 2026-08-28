@@ -127,6 +127,11 @@ constexpr int CB_PIN_TRIGGER = CB_PIN_NC;
 constexpr bool CB_ENDSTOP_ACTIVE_HIGH = true;
 constexpr bool CB_TRIGGER_ACTIVE_HIGH = true;
 
+// Width of the high part of a step pulse, in microseconds. Stepper drivers
+// generally want at least 2.5 us; 10 us is comfortably above that and still
+// leaves the line low for the rest of the period even at full speed.
+constexpr unsigned CB_PULSE_US = 10;
+
 // Debounce window for the switch and trigger inputs.
 constexpr int CB_INPUT_DEBOUNCE_MS = 20;
 

@@ -167,7 +167,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             ca-certificates git cmake make g++ dpkg-dev \
-            ${{ matrix.qt }} file
+            libpigpiod-if-dev ${{ matrix.qt }} file
 
       - uses: actions/checkout@v7
         with:
@@ -180,7 +180,8 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCBEAM_QT_VERSION=${{ matrix.qtver }}
+            -DCBEAM_QT_VERSION=${{ matrix.qtver }} \
+            -DCBEAM_BACKEND=gpio
 
       - name: Build
         run: cmake --build build --parallel

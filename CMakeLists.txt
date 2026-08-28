@@ -22,18 +22,18 @@ set(CMAKE_AUTOUIC ON)
 
 # Which backend actually moves the rail.
 #   sim   simulated motion, no hardware. Builds and runs anywhere.
-#   gpio  drives the pins in src/config.h. Raspberry Pi only. Not written yet.
+#   gpio  compiles in the pigpio driver as well, so the GUI's Simulation
+#         tickbox can be turned off and the rail actually moves. Needs
+#         libpigpiod-if-dev; Raspberry Pi 4 or earlier.
+#
+# This decides what is *available*, not what is *used*: a gpio build still
+# starts in simulation, and hardware is opted into from the GUI.
 set(CBEAM_BACKEND "sim" CACHE STRING "Motion backend: sim or gpio")
 set_property(CACHE CBEAM_BACKEND PROPERTY STRINGS sim gpio)
 
 option(CBEAM_BUILD_TESTS "Build the test suite" ON)
 
-if(CBEAM_BACKEND STREQUAL "gpio")
-    message(FATAL_ERROR
-        "CBEAM_BACKEND=gpio is not implemented. Motion is simulated for now; "
-        "src/stepdriver.h is where a GPIO backend plugs in. "
-        "Configure with -DCBEAM_BACKEND=sim.")
-elseif(NOT CBEAM_BACKEND STREQUAL "sim")
+if(NOT CBEAM_BACKEND MATCHES "^(sim|gpio)$")
     message(FATAL_ERROR
         "CBEAM_BACKEND must be 'sim' or 'gpio', not '${CBEAM_BACKEND}'.")
 endif()
@@ -121,6 +121,24 @@ target_link_libraries(cbeam PRIVATE
 add_dependencies(cbeam cbeam_version)
 target_include_directories(cbeam PRIVATE ${CBEAM_VERSION_DIR})
 
+if(CBEAM_BACKEND STREQUAL "gpio")
+    find_path(PIGPIO_IF2_INCLUDE_DIR NAMES pigpiod_if2.h)
+    find_library(PIGPIO_IF2_LIBRARY NAMES pigpiod_if2)
+
+    if(NOT PIGPIO_IF2_INCLUDE_DIR OR NOT PIGPIO_IF2_LIBRARY)
+        message(FATAL_ERROR
+            "CBEAM_BACKEND=gpio needs the pigpio daemon client library.\n"
+            "  sudo apt install libpigpiod-if-dev\n"
+            "It exists only on Raspberry Pi (and pigpio itself does not "
+            "support the Pi 5). Build with -DCBEAM_BACKEND=sim elsewhere.")
+    endif()
+
+    target_sources(cbeam PRIVATE src/pigpiodriver.h src/pigpiodriver.cpp)
+    target_include_directories(cbeam PRIVATE ${PIGPIO_IF2_INCLUDE_DIR})
+    target_link_libraries(cbeam PRIVATE ${PIGPIO_IF2_LIBRARY})
+    target_compile_definitions(cbeam PRIVATE CBEAM_HAVE_GPIO)
+endif()
+
 foreach(target cbeam cbeam_core)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
 endforeach()
@@ -177,6 +195,14 @@ set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_SECTION science)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+# Recommends rather than Depends: the daemon is what needs root and touches the
+# hardware, but it can equally live on another Pi and be reached over the
+# network via PIGPIO_ADDR. apt installs Recommends by default, so the ordinary
+# case still just works.
+if(CBEAM_BACKEND STREQUAL "gpio")
+    set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "pigpiod")
+endif()
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 
 include(CPack)

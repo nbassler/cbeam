@@ -49,7 +49,7 @@ machine out of memory.
 
 | Option | Default | |
 | --- | --- | --- |
-| `CBEAM_BACKEND` | `sim` | `sim` simulates motion and runs anywhere. `gpio` would drive the pins in `src/config.h`, and is **not implemented** — configuring with it fails on purpose rather than silently building something that cannot move a rail. |
+| `CBEAM_BACKEND` | `sim` | `sim` simulates motion and builds anywhere. `gpio` additionally compiles in the pigpio driver, so the GUI's **Simulation** tickbox can be cleared and the rail actually moves. Needs `libpigpiod-if-dev`, and pigpio supports Pi 4 and earlier only. This decides what is *available*, not what is *used* — see below. |
 | `CBEAM_BUILD_TESTS` | `ON` | Set `OFF` to skip the test target. |
 | `CBEAM_QT_VERSION` | `auto` | `auto` prefers Qt 6 and falls back to Qt 5. Force with `5` or `6`. The configure output names the version actually used — worth a glance on a machine that has both. |
 
@@ -137,12 +137,38 @@ exact value. Programmatic widget updates in
 [src/mainwindow.cpp](src/mainwindow.cpp) are wrapped in a `QSignalBlocker`,
 which is what stops the slider and the spin box from echoing each other.
 
+## Simulation and hardware
+
+Two switches, deliberately:
+
+- **Build time** (`CBEAM_BACKEND`) decides whether the pigpio driver is
+  compiled in at all. It cannot be, on a machine without pigpio.
+- **Run time** (the **Simulation** tickbox) decides whether pulses actually
+  reach the pins.
+
+It always **starts in simulation**, whatever the build. A freshly launched
+controller must not be able to move a rail before someone says so. On a build
+without GPIO support the box is ticked and disabled rather than hidden, so the
+reason is on screen instead of the control being mysteriously absent. The
+tickbox also locks while the carriage is travelling.
+
+The status bar names the driver in use, so what is on screen always says
+whether pulses are going anywhere.
+
+Hardware needs the pigpio daemon running:
+
+```sh
+sudo systemctl enable --now pigpiod
+```
+
+The app talks to it as an ordinary user — only the daemon needs root, which
+matters because running a Qt GUI as root over `ssh -X` is its own misery. Set
+`PIGPIO_ADDR` to use a daemon on another host.
+
 ## Motion
 
-Travel is **simulated** — nothing touches the GPIO yet. `Model::tick()`
-advances the carriage off a `QTimer` at the rate `src_rpi/test3.py` pulses
-(500 steps/s), rather than looping, so the GUI stays responsive and `Stop`
-can abort a move in progress.
+`Model::tick()` advances the carriage off a `QTimer` rather than looping, so
+the GUI stays responsive and `Stop` can abort a move in progress.
 
 Travel follows a trapezoidal speed profile: it eases from `CB_RATE_START` up
 to `CB_RATE_CRUISE` over `CB_RAMP_MS`, cruises, then sheds speed again into the
@@ -162,8 +188,8 @@ ramped move still lands on exactly the step it was asked for. There are tests
 for that.
 
 `Model` never touches hardware itself. It drives a `StepDriver`
-([src/stepdriver.h](src/stepdriver.h)), of which `SimDriver` is the only
-implementation today. A driver's `step()` returns *how many steps it actually
+([src/stepdriver.h](src/stepdriver.h)) — either `SimDriver` or `PigpioDriver`.
+A driver's `step()` returns *how many steps it actually
 took*, which is the hook the end-stop switches need: a short count means the
 driver stopped early, and the model then halts and re-targets to where the
 hardware really is instead of where it wanted to be. The tests exercise that
