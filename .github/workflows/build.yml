@@ -29,9 +29,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Check formatting
-        run: |
-          clang-format --version
-          clang-format --dry-run --Werror src/*.cpp src/*.h tests/*.cpp
+        run: tools/clang_format.sh --check
 
   # Fast feedback on every push. This is the job that earns its keep -- the
   # ARM artifacts below are a convenience, this is the one that catches

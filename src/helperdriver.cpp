@@ -41,10 +41,9 @@ HelperDriver::HelperDriver() {
   m_process.start();
 
   if (!m_process.waitForStarted(3000))
-    throw std::runtime_error(
-        QString("cannot start cbeam-helper at %1")
-            .arg(m_process.program())
-            .toStdString());
+    throw std::runtime_error(QString("cannot start cbeam-helper at %1")
+                                 .arg(m_process.program())
+                                 .toStdString());
 
   DriverStatus status;
 
@@ -148,7 +147,8 @@ bool HelperDriver::sendCommand(const QByteArray &command, QByteArray &reply) {
   if (!ensureRunning())
     return false;
 
-  if (m_process.write(command + '\n') < 0 || !m_process.waitForBytesWritten(1000)) {
+  if (m_process.write(command + '\n') < 0 ||
+      !m_process.waitForBytesWritten(1000)) {
     setError(QString("cannot write '%1' to cbeam-helper")
                  .arg(QString::fromLatin1(command.constData())));
     return false;

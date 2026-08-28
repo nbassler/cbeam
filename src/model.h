@@ -56,7 +56,8 @@ public slots:
   void stop(); // abort travel and hold here
   void estop();
   void zero(); // call the present position zero
-  bool setDirFlipped(bool flipped); // flip positive direction; refused while moving
+  bool
+  setDirFlipped(bool flipped); // flip positive direction; refused while moving
 
   void setTargetSteps(int steps);
   void setTargetMm(double mm);

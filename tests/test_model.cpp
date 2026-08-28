@@ -216,7 +216,7 @@ void TestModel::zeroShiftsWindowByPosition() {
   Model m;
   const int span = m.stepUlim() - m.stepLlim();
 
-    // Kept short deliberately: travel runs in real time at CB_STEPS_PER_TICK
+  // Kept short deliberately: travel runs in real time at CB_STEPS_PER_TICK
   // per CB_TICK_MS, and what is under test here is the arithmetic of zero(),
   // which does not care how far the carriage came.
   m.setTargetMm(2.0);

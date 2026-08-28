@@ -103,8 +103,8 @@ bool MotionHelper::stop(std::string &error) {
 
   const int planned = plannedPositionLocked();
   const int delta = planned - m_position;
-  const int direction = delta == 0 ? (m_target >= m_position ? 1 : -1)
-                                   : (delta > 0 ? 1 : -1);
+  const int direction =
+      delta == 0 ? (m_target >= m_position ? 1 : -1) : (delta > 0 ? 1 : -1);
   const double speed = std::max(CB_RATE_START, m_planRate);
   const double braking =
       (speed * speed - CB_RATE_START * CB_RATE_START) / (2.0 * CB_ACCEL);
@@ -241,9 +241,9 @@ bool MotionHelper::queueNextWaveLocked() {
     rate = std::max(CB_RATE_START,
                     std::min({CB_RATE_CRUISE, accelerating, braking}));
 
-    const unsigned periodUs = std::max<unsigned>(
-        static_cast<unsigned>(std::lround(1000000.0 / rate)),
-        CB_PULSE_MIN_US * 2u);
+    const unsigned periodUs =
+        std::max<unsigned>(static_cast<unsigned>(std::lround(1000000.0 / rate)),
+                           CB_PULSE_MIN_US * 2u);
     const unsigned highUs = std::max(periodUs / 2u, CB_PULSE_MIN_US);
     const unsigned lowUs = periodUs - highUs;
 

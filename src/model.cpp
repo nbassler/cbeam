@@ -181,12 +181,14 @@ bool Model::setDriver(std::unique_ptr<StepDriver> driver) {
 void Model::go() {
   if (usesAsyncDriver()) {
     if (!m_positionKnown) {
-      emit driverNotice(tr("Position is unknown - zero the carriage before moving"));
+      emit driverNotice(
+          tr("Position is unknown - zero the carriage before moving"));
       return;
     }
 
     if (m_estopped) {
-      emit driverNotice(tr("Emergency stop is latched - zero the carriage to recover"));
+      emit driverNotice(
+          tr("Emergency stop is latched - zero the carriage to recover"));
       return;
     }
 
@@ -337,7 +339,8 @@ void Model::tick() {
   if (stride == 0)
     return; // still filling the accumulator; nothing to do this tick
 
-  const int physicalStride = m_dirFlipped ? -(direction * stride) : direction * stride;
+  const int physicalStride =
+      m_dirFlipped ? -(direction * stride) : direction * stride;
   const StepOutcome outcome = m_driver->step(physicalStride);
 
   if (outcome.result == StepResult::Busy) {

@@ -79,8 +79,9 @@ MainWindow::MainWindow(QWidget *parent)
           [this](bool) { updateControlStates(); });
   connect(m_model, &Model::estoppedChanged, this,
           [this](bool) { updateControlStates(); });
-  connect(m_model, &Model::driverNotice, this,
-          [this](const QString &message) { statusBar()->showMessage(message); });
+  connect(m_model, &Model::driverNotice, this, [this](const QString &message) {
+    statusBar()->showMessage(message);
+  });
   connect(m_model, &Model::emergencyStopped, this, [this] {
     statusBar()->showMessage(
         tr("Emergency stop - position is unknown until Zero is pressed"));
