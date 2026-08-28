@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // ${command:cmake.launchTargetPath} asks CMake Tools for the currently
+      // selected target's binary. There is no settings.json key that pins the
+      // launch target -- the selection is UI state -- so this is the way to
+      // get F5 working without hardcoding a path.
+      "name": "cbeam",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

@@ -245,9 +245,10 @@ void TestModel::endstopHaltsTravel() {
 // exactness guarantee has to survive the variable rate: a ramped move must
 // still land on precisely the step it was asked for.
 void TestModel::travelRampsUpAndDown() {
-  // Long enough to reach cruise and come back down, short enough that the
-  // test does not spend seconds of wall clock getting there.
-  const int target = 500;
+  // Must exceed the ramp distance in both directions -- 550 steps at the
+  // current rates -- or the move never reaches cruise, the profile comes out
+  // triangular, and the ceiling assertion below tests nothing.
+  const int target = 1000;
 
   Model m;
   QList<int> strides;

@@ -41,7 +41,7 @@ jobs:
   # each catches things the other waves through. The Pi builds with gcc; clang
   # is here as a second opinion.
   test:
-    name: test (${{ matrix.compiler }})
+    name: test (${{ matrix.compiler }}, qt${{ matrix.qtver }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,9 +50,20 @@ jobs:
           - compiler: gcc
             cxx: g++
             package: g++
+            qt: qt6-base-dev
+            qtver: 6
           - compiler: clang
             cxx: clang++
             package: clang
+            qt: qt6-base-dev
+            qtver: 6
+          # Qt 5 is what Pi OS Bullseye has, and that is where this actually
+          # runs today. Without a job here, the Qt 5 path would rot unnoticed.
+          - compiler: gcc
+            cxx: g++
+            package: g++
+            qt: qtbase5-dev
+            qtver: 5
 
     steps:
       - uses: actions/checkout@v7
@@ -66,13 +77,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            cmake make ${{ matrix.package }} qt6-base-dev
+            cmake make ${{ matrix.package }} ${{ matrix.qt }}
 
       - name: Configure
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCBEAM_QT_VERSION=${{ matrix.qtver }}
 
       - name: Build
         run: cmake --build build --parallel
@@ -133,7 +145,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        debian: [bookworm, trixie] # Pi OS 12 and 13
+        include:
+          # Pi OS 11. No Qt 6 packaged at all, so this one builds against
+          # Qt 5 -- and its glibc 2.31 is why the container matters.
+          - debian: bullseye
+            qt: qtbase5-dev
+            qtver: 5
+          - debian: bookworm # Pi OS 12
+            qt: qt6-base-dev
+            qtver: 6
+          - debian: trixie # Pi OS 13
+            qt: qt6-base-dev
+            qtver: 6
 
     steps:
       # Before checkout, deliberately: without git in the container,
@@ -143,7 +166,8 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            ca-certificates git cmake make g++ qt6-base-dev file
+            ca-certificates git cmake make g++ dpkg-dev \
+            ${{ matrix.qt }} file
 
       - uses: actions/checkout@v7
         with:
@@ -153,7 +177,10 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCBEAM_QT_VERSION=${{ matrix.qtver }}
 
       - name: Build
         run: cmake --build build --parallel
@@ -161,18 +188,61 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure --parallel 4
 
+      - name: Package
+        working-directory: build
+        run: |
+          cpack -G DEB
+          # Debian release goes in the filename: the packages are otherwise
+          # named identically but are not interchangeable, since each is built
+          # against its own glibc and Qt.
+          for deb in *.deb; do
+            mv "$deb" "${deb%.deb}~${{ matrix.debian }}.deb"
+          done
+
       - name: Report what was built
         run: |
-          echo "### cbeam for Pi OS (${{ matrix.debian }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "### cbeam for Pi OS (${{ matrix.debian }}, Qt${{ matrix.qtver }})" \
+            >> "$GITHUB_STEP_SUMMARY"
           {
             echo '```'
             grep 'define CB_VERSION ' build/generated/version.h
             file build/cbeam
+            dpkg-deb -I build/*.deb | grep -E 'Package|Version|Depends|Architecture'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY" || true
 
       - uses: actions/upload-artifact@v7
         with:
           name: cbeam-arm64-${{ matrix.debian }}
-          path: build/cbeam
+          path: build/*.deb
           if-no-files-found: error
+
+  # Tag pushes get their packages attached to the GitHub release. Workflow
+  # artifacts are not enough on their own: they expire, and downloading one
+  # requires a GitHub login, which a release asset does not.
+  release:
+    name: attach packages to release
+    needs: pi-binary
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l dist
+          # Create the release if the tag has no release yet, otherwise add to
+          # whichever one is already there.
+          gh release create "$GITHUB_REF_NAME" dist/*.deb \
+              --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+              --generate-notes \
+            || gh release upload "$GITHUB_REF_NAME" dist/*.deb \
+              --repo "$GITHUB_REPOSITORY" --clobber

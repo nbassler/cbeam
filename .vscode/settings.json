@@ -1,0 +1,21 @@
+{
+  // Let CMake Tools tell IntelliSense about include paths and defines, rather
+  // than IntelliSense guessing. This is what makes the generated version.h
+  // resolve: it lives in build/generated, which only the CMake configuration
+  // knows about.
+  //
+  // If "cannot open source file version.h" appears, the build directory has
+  // not been configured yet -- run CMake: Configure. The header is generated
+  // at configure time.
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  "[cpp]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools",
+    "editor.formatOnSave": true
+  }
+}

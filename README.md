@@ -4,7 +4,7 @@
 [![release](https://img.shields.io/github/v/tag/nbassler/cbeam?label=release&sort=semver)](https://github.com/nbassler/cbeam/tags)
 [![license](https://img.shields.io/github/license/nbassler/cbeam)](LICENSE)
 
-Qt 6 controller for a linear actuator — a stepper motor on a rail.
+Qt controller for a linear actuator — a stepper motor on a rail.
 
 ## Hardware
 
@@ -32,13 +32,16 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Needs Qt 6 (Core, Gui, Widgets, Test) and CMake ≥ 3.16. All of those are in
-`qt6-base-dev`; there is no extra package for the tests.
+Needs CMake ≥ 3.16 and **either Qt 6 or Qt 5** (Core, Gui, Widgets, Test):
 
-> **Pi OS Bookworm (Debian 12) or newer, 64-bit.** Qt 6 first appears in Debian
-> 12 — Bullseye has no `qt6-base-dev` at all, only Qt 5, so this will not build
-> there. Raspberry Pi do not support in-place Bullseye→Bookworm upgrades; use a
-> fresh image. 64-bit also happens to be what VS Code's Remote-SSH server needs.
+```sh
+sudo apt install cmake make g++ qt6-base-dev    # Debian 12+ / Pi OS Bookworm
+sudo apt install cmake make g++ qtbase5-dev     # Debian 11  / Pi OS Bullseye
+```
+
+Qt 5 is supported because Pi OS Bullseye packages no Qt 6 at all — not an old
+version, none — and reflashing a headless rig that is in use is not always an
+option. Nothing in the sources is Qt-6-only.
 
 On a 1 GB Pi, build with `-j2` rather than `--parallel`: g++ on Qt sources can
 take several hundred MB per translation unit, and four at once will run the
@@ -48,9 +51,42 @@ machine out of memory.
 | --- | --- | --- |
 | `CBEAM_BACKEND` | `sim` | `sim` simulates motion and runs anywhere. `gpio` would drive the pins in `src/config.h`, and is **not implemented** — configuring with it fails on purpose rather than silently building something that cannot move a rail. |
 | `CBEAM_BUILD_TESTS` | `ON` | Set `OFF` to skip the test target. |
+| `CBEAM_QT_VERSION` | `auto` | `auto` prefers Qt 6 and falls back to Qt 5. Force with `5` or `6`. The configure output names the version actually used — worth a glance on a machine that has both. |
 
 The running backend is named in the status bar, so it is never a mystery
 whether the window in front of you is driving real hardware.
+
+## Packages
+
+Tagging a release (`v*`) builds an ARM64 `.deb` for each Pi OS generation and
+attaches them to the GitHub release:
+
+| Asset | For | Links against |
+| --- | --- | --- |
+| `cbeam_X.Y.Z_arm64~bullseye.deb` | Pi OS 11 | Qt 5 |
+| `cbeam_X.Y.Z_arm64~bookworm.deb` | Pi OS 12 | Qt 6 |
+| `cbeam_X.Y.Z_arm64~trixie.deb` | Pi OS 13 | Qt 6 |
+
+```sh
+sudo apt install ./cbeam_0.0.3_arm64~bullseye.deb
+```
+
+Use `apt install ./file.deb` rather than `dpkg -i`, so Qt gets pulled in
+automatically. The packages are **not** interchangeable: each is built inside a
+container of its own Debian release, against that release's glibc and Qt.
+
+The Qt dependency is never written down anywhere. `dpkg-shlibdeps` derives it
+from the linked binary, so the same `CMakeLists.txt` produces a package
+depending on `libqt5widgets5` on Bullseye and `libqt6widgets6` on Bookworm
+without being told which is which.
+
+To build one by hand:
+
+```sh
+cmake --build build && (cd build && cpack -G DEB)
+```
+
+That needs `dpkg-dev` for `dpkg-shlibdeps`.
 
 ## Version
 
@@ -76,16 +112,8 @@ tag it; the next build picks the name up on its own:
 git tag -a v0.0.2 -m "..."
 ```
 
-The app is meant to be built and run **on the Raspberry Pi**, reached over
-`ssh -X` when it is being used. There is no client/server split. Build deps on
-Pi OS:
-
-```sh
-sudo apt install cmake g++ qt6-base-dev
-```
-
 If `ssh -X` gives you a blank or refused window, force the X11 backend —
-Qt 6 will otherwise try Wayland:
+Qt will otherwise try Wayland:
 
 ```sh
 QT_QPA_PLATFORM=xcb ./build/cbeam
@@ -126,7 +154,7 @@ what is left.
 Two reasons it is there. A stepper asked to start at cruise can stall or lose
 steps against the carriage's inertia; and a rail that slams to a halt at a
 limit is alarming to stand next to, whereas one visibly slowing over its last
-half second reads as deliberate. `Stop` decelerates the same way rather than
+second reads as deliberate. `Stop` decelerates the same way rather than
 cutting instantly — for a real emergency, cut the motor supply.
 
 Sub-step remainders are carried between ticks rather than rounded away, so a

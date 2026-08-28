@@ -40,11 +40,14 @@ MainWindow::MainWindow(QWidget *parent)
 
   connect(ui->horizontalSlider, &QSlider::valueChanged, m_model,
           &Model::setTargetSteps);
-  connect(ui->doubleSpinBox_goPos, &QDoubleSpinBox::valueChanged, m_model,
+  connect(ui->doubleSpinBox_goPos,
+          qOverload<double>(&QDoubleSpinBox::valueChanged), m_model,
           &Model::setTargetMm);
-  connect(ui->doubleSpinBox_llim, &QDoubleSpinBox::valueChanged, m_model,
+  connect(ui->doubleSpinBox_llim,
+          qOverload<double>(&QDoubleSpinBox::valueChanged), m_model,
           &Model::setLlimMm);
-  connect(ui->doubleSpinBox_ulim, &QDoubleSpinBox::valueChanged, m_model,
+  connect(ui->doubleSpinBox_ulim,
+          qOverload<double>(&QDoubleSpinBox::valueChanged), m_model,
           &Model::setUlimMm);
 
   setUpJogColumns();
@@ -114,7 +117,7 @@ void MainWindow::setUpJogColumns() {
             [this, &col] { m_model->jog(+col.steps->value()); });
     connect(col.minus, &QPushButton::clicked, this,
             [this, &col] { m_model->jog(-col.steps->value()); });
-    connect(col.steps, &QSpinBox::valueChanged, this,
+    connect(col.steps, qOverload<int>(&QSpinBox::valueChanged), this,
             [this, &col] { relabelJogColumn(col); });
 
     relabelJogColumn(col);

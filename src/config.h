@@ -52,10 +52,15 @@ constexpr int CB_MM_DIGITS = 3;
 // speed. Two reasons: a stepper asked to start at cruise rate can stall or
 // lose steps against the inertia of the carriage, and a rail that slams to a
 // halt at a limit is alarming to stand next to. Seeing it slow down over the
-// last half second before its target reads as deliberate rather than runaway.
+// last second before its target reads as deliberate rather than runaway.
+//
+// Note that the ramp time sets a ramp *distance*: at these rates a 1000 ms
+// ramp spends 275 steps getting up to speed and another 275 slowing down, so
+// moves shorter than 550 steps (about 22 mm) never reach cruise at all and
+// come out triangular.
 constexpr double CB_RATE_CRUISE = 500.0; // matches the 2 ms pulse in test3.py
 constexpr double CB_RATE_START = 50.0;   // rate at both ends of a move
-constexpr int CB_RAMP_MS = 500;          // time from start rate up to cruise
+constexpr int CB_RAMP_MS = 1000;         // time from start rate up to cruise
 
 // Acceleration follows from the rates and the ramp time, in steps/s^2.
 constexpr double CB_ACCEL =

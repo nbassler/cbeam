@@ -1,7 +1,7 @@
-find_package(Qt6 REQUIRED COMPONENTS Test)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Test)
 
 add_executable(test_model test_model.cpp)
-target_link_libraries(test_model PRIVATE cbeam_core Qt::Test)
+target_link_libraries(test_model PRIVATE cbeam_core Qt${QT_VERSION_MAJOR}::Test)
 target_compile_options(test_model PRIVATE -Wall -Wextra -Wpedantic)
 
 # Register each QTest slot as its own ctest case rather than one opaque entry

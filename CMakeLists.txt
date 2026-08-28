@@ -38,7 +38,36 @@ elseif(NOT CBEAM_BACKEND STREQUAL "sim")
         "CBEAM_BACKEND must be 'sim' or 'gpio', not '${CBEAM_BACKEND}'.")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+# Qt 5 and Qt 6 both work, Qt 6 preferred when both are present.
+#
+# Qt 5 is supported because Pi OS Bullseye has no Qt 6 packages at all -- not
+# an old version, none -- and reflashing a headless rig that is in use is not
+# always an option. The cost is small: the only version-sensitive code is a
+# handful of connects, and those use qOverload() so they resolve against
+# either. Nothing here is Qt-6-only.
+set(CBEAM_QT_VERSION "auto" CACHE STRING "Qt major version: auto, 5 or 6")
+set_property(CACHE CBEAM_QT_VERSION PROPERTY STRINGS auto 5 6)
+
+if(CBEAM_QT_VERSION STREQUAL "auto")
+    # Probing for Qt6 explicitly rather than the usual
+    # find_package(QT NAMES Qt6 Qt5 ...): in config mode CMake does not
+    # reliably honour that name order, and on a machine with both installed it
+    # picks Qt5, quietly building against the older one.
+    find_package(Qt6 QUIET COMPONENTS Core Gui Widgets)
+
+    if(Qt6_FOUND)
+        set(QT_VERSION_MAJOR 6)
+    else()
+        set(QT_VERSION_MAJOR 5)
+    endif()
+elseif(CBEAM_QT_VERSION MATCHES "^[56]$")
+    set(QT_VERSION_MAJOR ${CBEAM_QT_VERSION})
+else()
+    message(FATAL_ERROR
+        "CBEAM_QT_VERSION must be auto, 5 or 6, not '${CBEAM_QT_VERSION}'.")
+endif()
+
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets)
 find_package(Git QUIET)
 
 # The version shown in the window title comes from `git describe`, resolved on
@@ -66,16 +95,19 @@ add_custom_target(cbeam_version
 
 # Position model and motion backend, split out of the executable so the tests
 # link against exactly the code the app runs.
-qt_add_library(cbeam_core STATIC
+# Plain add_library/add_executable rather than qt_add_*: those exist only in
+# Qt 6, and for a dynamically linked desktop build they add nothing that
+# AUTOMOC and AUTOUIC are not already doing.
+add_library(cbeam_core STATIC
         src/config.h
         src/stepdriver.h
         src/model.h
         src/model.cpp
 )
 target_include_directories(cbeam_core PUBLIC src)
-target_link_libraries(cbeam_core PUBLIC Qt::Core)
+target_link_libraries(cbeam_core PUBLIC Qt${QT_VERSION_MAJOR}::Core)
 
-qt_add_executable(cbeam
+add_executable(cbeam
         src/main.cpp
         src/slider.ui
         src/mainwindow.h
@@ -83,8 +115,8 @@ qt_add_executable(cbeam
 )
 target_link_libraries(cbeam PRIVATE
     cbeam_core
-    Qt::Gui
-    Qt::Widgets
+    Qt${QT_VERSION_MAJOR}::Gui
+    Qt${QT_VERSION_MAJOR}::Widgets
 )
 add_dependencies(cbeam cbeam_version)
 target_include_directories(cbeam PRIVATE ${CBEAM_VERSION_DIR})
@@ -94,11 +126,62 @@ foreach(target cbeam cbeam_core)
 endforeach()
 
 message(STATUS "cbeam motion backend: ${CBEAM_BACKEND}")
+message(STATUS "cbeam Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
 
 if(CBEAM_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# ---------------------------------------------------------------------------
+# Packaging
+#
+# `cpack -G DEB` in the build tree produces an installable .deb.
+#
+# The Qt dependency is deliberately not written down here. CPACK_DEBIAN_
+# PACKAGE_SHLIBDEPS runs dpkg-shlibdeps against the linked binary, so the same
+# CMakeLists yields a package depending on libqt5widgets5 when built on
+# Bullseye and libqt6widgets6 on Bookworm, without knowing which is which.
+install(TARGETS cbeam RUNTIME DESTINATION bin)
+
+# Package version is the nearest tag, resolved at configure time. This is not
+# the same as CB_VERSION in the window title, which is resolved per build and
+# carries the commit -- Debian versions have to be stable and start with a
+# digit, so a bare tag is the right thing here.
+set(CBEAM_PACKAGE_VERSION "0.0.0")
+
+if(GIT_EXECUTABLE)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE CBEAM_NEAREST_TAG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE CBEAM_TAG_RESULT
+    )
+
+    if(CBEAM_TAG_RESULT EQUAL 0 AND CBEAM_NEAREST_TAG MATCHES "^v?([0-9].*)$")
+        set(CBEAM_PACKAGE_VERSION "${CMAKE_MATCH_1}")
+    endif()
+endif()
+
+set(CPACK_PACKAGE_NAME cbeam)
+set(CPACK_PACKAGE_VERSION ${CBEAM_PACKAGE_VERSION})
+set(CPACK_PACKAGE_VENDOR "Niels Bassler")
+set(CPACK_PACKAGE_CONTACT "Niels Bassler <niels.bassler@gmail.com>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Controller for an OpenBuilds C-Beam linear actuator")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/nbassler/cbeam")
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
+
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_SECTION science)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+
+include(CPack)
+
+message(STATUS "cbeam package version: ${CBEAM_PACKAGE_VERSION}")
 
 # Convenience: `cmake --build build --target format` reformats everything in
 # place. Style is stock LLVM, defined in .clang-format. CI checks it.
